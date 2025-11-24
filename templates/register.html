@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Registro</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+</head>
+<body class="has-background-light">
+
+<section class="section">
+<div class="container">
+<div class="column is-half is-offset-one-quarter box">
+
+<h1 class="title has-text-centered">Crear cuenta</h1>
+
+{% if error %}
+<p class="notification is-danger">{{ error }}</p>
+{% endif %}
+
+<form method="POST">
+
+<div class="field">
+<label class="label">Email</label>
+<input class="input" type="email" name="email" required>
+</div>
+
+<div class="field">
+<label class="label">Contraseña</label>
+<input class="input" type="password" name="password" required>
+</div>
+
+<div class="field">
+<label class="label">Altura (cm)</label>
+<input class="input" type="number" name="altura" required>
+</div>
+
+<button class="button is-success is-fullwidth">Crear cuenta</button>
+</form>
+
+<p class="has-text-centered" style="margin-top:10px;">
+¿Ya tienes cuenta? <a href="/login">Inicia sesión</a>
+</p>
+
+</div>
+</div>
+</section>
+
+</body>
+</html>

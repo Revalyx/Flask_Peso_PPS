@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+</head>
+<body class="has-background-light">
+
+<section class="section">
+<div class="container">
+<div class="column is-half is-offset-one-quarter box">
+
+<h1 class="title has-text-centered">Iniciar sesión</h1>
+
+{% if error %}
+<p class="notification is-danger">{{ error }}</p>
+{% endif %}
+
+<form method="POST">
+
+<div class="field">
+<label class="label">Email</label>
+<input class="input" type="email" name="email" required>
+</div>
+
+<div class="field">
+<label class="label">Contraseña</label>
+<input class="input" type="password" name="password" required>
+</div>
+
+<button class="button is-primary is-fullwidth">Entrar</button>
+</form>
+
+<p class="has-text-centered" style="margin-top:10px;">
+¿No tienes cuenta? <a href="/register">Créala aquí</a>
+</p>
+
+</div>
+</div>
+</section>
+
+</body>
+</html>
