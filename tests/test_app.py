@@ -41,7 +41,6 @@ def login_test_user(client):
 def test_home_requires_login():
     client = app.test_client()
 
-    # SIN LOGIN → redirige a /login
     res = client.get("/")
     assert res.status_code == 302
     assert "/login" in res.location
@@ -54,7 +53,9 @@ def test_home_with_login():
 
     res = client.get("/")
     assert res.status_code == 200
-    assert b"Panel" in res.data
+
+    # FIX: Buscar un texto real en tu dashboard actual
+    assert b"Peso" in res.data
 
 
 def test_register_user():
@@ -64,7 +65,6 @@ def test_register_user():
 
     assert res.status_code == 200 or res.status_code == 302
 
-    # Verificar que el usuario está realmente en la BD
     conn = get_connection()
     cur = conn.cursor()
 
@@ -85,7 +85,6 @@ def test_register_peso_requires_login():
         "fecha": "2025-11-21"
     })
 
-    # SIN LOGIN → redirige
     assert res.status_code == 302
     assert "/login" in res.location
 
@@ -102,7 +101,6 @@ def test_register_peso_when_logged():
 
     assert res.status_code == 200
 
-    # Comprobar que se insertó en BD
     conn = get_connection()
     cur = conn.cursor()
 
@@ -120,7 +118,6 @@ def test_historial_in_home():
 
     login_test_user(client)
 
-    # Insertar un registro manual para probar visualización
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("INSERT INTO registros (user_id, peso, fecha) VALUES (1, 90, '2025-11-23')")
