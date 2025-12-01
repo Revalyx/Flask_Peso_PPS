@@ -1,6 +1,9 @@
+# tests/test_app.py
+
 import os
 from src.app import app
 from src.db import init_db, DB_PATH, get_connection
+
 
 #################################
 # RESETEAR BD ANTES DE CADA TEST
@@ -16,12 +19,17 @@ def setup_function():
 # HELPERS
 #################################
 
+TEST_EMAIL = "test@test.com"
+TEST_PASS = "Testpass123"   # cumple política ASVS
+TEST_ALTURA = "180"
+
+
 def register_test_user(client):
     """Registrar usuario con altura obligatoria"""
     return client.post("/register", data={
-        "email": "test@test.com",
-        "password": "1234",
-        "altura": "180"
+        "email": TEST_EMAIL,
+        "password": TEST_PASS,
+        "altura": TEST_ALTURA
     }, follow_redirects=True)
 
 
@@ -29,8 +37,8 @@ def login_test_user(client):
     """Registrar + iniciar sesión"""
     register_test_user(client)
     return client.post("/login", data={
-        "email": "test@test.com",
-        "password": "1234"
+        "email": TEST_EMAIL,
+        "password": TEST_PASS
     }, follow_redirects=True)
 
 
@@ -69,13 +77,13 @@ def test_register_user():
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT email, altura FROM users WHERE email=?", ("test@test.com",))
+    cur.execute("SELECT email, altura FROM users WHERE email=?", (TEST_EMAIL,))
     row = cur.fetchone()
     conn.close()
 
     assert row is not None
-    assert row[0] == "test@test.com"
-    assert row[1] == 180
+    assert row[0] == TEST_EMAIL
+    assert row[1] == int(TEST_ALTURA)
 
 
 def test_register_peso_requires_login():

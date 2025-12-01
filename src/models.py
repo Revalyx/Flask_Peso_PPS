@@ -1,6 +1,25 @@
 # models.py
+import re
 from .db import get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
+
+
+def validar_password(password: str) -> bool:
+    """
+    Política mínima ASVS Nivel 2:
+    - Al menos 8 caracteres
+    - Debe incluir letras y números
+    """
+    if len(password) < 8:
+        return False
+
+    if not re.search(r"[A-Za-z]", password):
+        return False
+
+    if not re.search(r"[0-9]", password):
+        return False
+
+    return True
 
 
 class Usuario:
