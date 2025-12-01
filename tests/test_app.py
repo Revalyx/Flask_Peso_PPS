@@ -62,8 +62,7 @@ def test_home_with_login():
 
     res = client.get("/")
     assert res.status_code == 200
-    # CORREGIDO: Antes buscaba "Panel", ahora busca el título nuevo "Tu Progreso"
-    assert b"Tu Progreso" in res.data
+    assert b"Panel" in res.data
 
 
 def test_register_user():
@@ -139,6 +138,5 @@ def test_historial_in_home():
     res = client.get("/")
 
     assert res.status_code == 200
-    # Verificamos que el dato sale en la lista (ahora con el formato nuevo)
     assert b"90" in res.data
     assert b"2025-11-23" in res.data
