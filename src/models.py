@@ -24,7 +24,6 @@ class Usuario:
     def login(email, password):
         conn = get_connection()
         cur = conn.cursor()
-
         cur.execute("SELECT id, password FROM users WHERE email=?", (email,))
         row = cur.fetchone()
         conn.close()
@@ -32,11 +31,13 @@ class Usuario:
         if not row:
             return None
 
-        user_id, hashed = row
+        user_id, password_hash = row
 
-        if check_password_hash(hashed, password):
+        if check_password_hash(password_hash, password):
             return user_id
+
         return None
+
 
     @staticmethod
     def get_altura(user_id):
