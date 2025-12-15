@@ -2,7 +2,7 @@ from flask import Flask, request, session, redirect, render_template, flash
 from datetime import datetime, date
 import re
 
-from .db import init_db, get_connection
+from src.db import init_db, get_connection
 from .models import Usuario, RegistroPeso
 
 app = Flask(
