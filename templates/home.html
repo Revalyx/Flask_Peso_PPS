@@ -2,56 +2,228 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Panel</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.0/css/bulma.min.css">
+<title>Panel | Peso App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+<style>
+:root{
+    --bg:#0f172a;
+    --card:#1e293b;
+    --text:#f8fafc;
+    --muted:#94a3b8;
+    --primary:#6366f1;
+    --success:#4ade80;
+    --danger:#ef4444;
+    --warning:#fbbf24;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:40px 20px;
+}
+
+.panel{
+    max-width:900px;
+    margin:0 auto;
+    background:var(--card);
+    border-radius:24px;
+    padding:32px;
+}
+
+h1{
+    font-size:2rem;
+    margin-bottom:25px;
+}
+
+/* ---------- STATS ---------- */
+.stats{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:15px;
+    margin-bottom:30px;
+}
+
+.stat{
+    background:#334155;
+    padding:20px;
+    border-radius:16px;
+    text-align:center;
+}
+
+.stat-value{
+    font-size:1.6rem;
+    font-weight:700;
+}
+
+.stat-label{
+    font-size:.9rem;
+    color:var(--muted);
+    margin-top:4px;
+}
+
+/* ---------- FORM ---------- */
+form{
+    margin-bottom:10px;
+}
+
+label{
+    display:block;
+    font-size:.85rem;
+    color:var(--muted);
+    margin-bottom:4px;
+}
+
+input{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    border:none;
+    margin-bottom:12px;
+}
+
+button{
+    width:100%;
+    padding:12px;
+    background:linear-gradient(135deg,#14b8a6,#06b6d4);
+    border:none;
+    border-radius:10px;
+    font-weight:600;
+    cursor:pointer;
+}
+
+/* ---------- FLASH ---------- */
+.flash{
+    padding:12px 16px;
+    border-radius:12px;
+    margin-bottom:15px;
+}
+
+.flash.error{background:#7f1d1d}
+.flash.success{background:#14532d}
+
+/* ---------- HISTORIAL ---------- */
+.historial{
+    margin-top:30px;
+}
+
+.item{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+    border-bottom:1px solid #334155;
+    color:var(--muted);
+}
+
+canvas{
+    margin-top:25px;
+}
+
+/* ---------- LINKS ---------- */
+.links{
+    margin-top:20px;
+    text-align:center;
+}
+
+.links a{
+    color:#818cf8;
+    text-decoration:none;
+    margin:0 10px;
+}
+</style>
 </head>
-<body class="has-background-light">
+<body>
 
-<section class="section">
-<div class="container">
-<div class="column is-half is-offset-one-quarter box">
+<div class="panel">
+    <h1>Panel</h1>
 
-<h1 class="title has-text-centered">Panel</h1>
+    <!-- STATS -->
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">{{ peso_actual }} kg</div>
+            <div class="stat-label">Peso actual</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">{{ imc }}</div>
+            <div class="stat-label">IMC</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" style="color:{{ color_estado }}">{{ estado }}</div>
+            <div class="stat-label">Estado</div>
+        </div>
+    </div>
 
-<form method="POST" action="/registro">
+    <!-- FORM -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category,msg in messages %}
+        <div class="flash {{ category }}">{{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
 
-<div class="field">
-<label class="label">Peso (kg)</label>
-<input class="input" type="number" step="0.01" name="peso" required>
+    <form method="POST" action="/registro">
+        <label>Peso (kg)</label>
+        <input type="number" step="0.01" name="peso" required>
+
+        <label>Fecha</label>
+        <input type="date" name="fecha" required>
+
+        <button>Guardar</button>
+    </form>
+
+    <!-- HISTORIAL -->
+    <div class="historial">
+        <h3>Historial</h3>
+
+        {% if registros %}
+            {% for r in registros %}
+            <div class="item">
+                <span>{{ r[2] }}</span>
+                <span>{{ r[1] }} kg</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color:var(--muted)">No hay registros aún.</p>
+        {% endif %}
+    </div>
+
+    <!-- GRAFICA -->
+    {% if registros %}
+    <canvas id="chart"></canvas>
+    {% endif %}
+
+    <div class="links">
+        <a href="/logout">Cerrar sesión</a>
+    </div>
 </div>
-
-<div class="field">
-<label class="label">Fecha</label>
-<input class="input" type="date" name="fecha" required>
-</div>
-
-<button class="button is-primary is-fullwidth">Guardar</button>
-</form>
-
-<hr>
-
-<h2 class="title is-5">Historial</h2>
 
 {% if registros %}
-    {% for r in registros %}
-    <div class="box">
-        <p><strong>Peso:</strong> {{ r.peso }} kg</p>
-        <p><strong>Fecha:</strong> {{ r.fecha }}</p>
-        <p><strong>IMC:</strong> {{ r.imc }}</p>
-    </div>
-    {% endfor %}
-{% else %}
-<p class="has-text-grey has-text-centered">No hay registros aún.</p>
+<script>
+new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{
+        labels: {{ labels | tojson }},
+        datasets:[{
+            data: {{ data | tojson }},
+            borderColor:'#818cf8',
+            backgroundColor:'rgba(129,140,248,.2)',
+            tension:.4,
+            fill:true
+        }]
+    },
+    options:{
+        plugins:{ legend:{ display:false } }
+    }
+});
+</script>
+
 {% endif %}
 
-<div class="has-text-centered" style="margin-top:15px;">
-    <a href="/edit-height">Editar altura</a> •
-    <a href="/logout">Cerrar sesión</a>
-</div>
-
-</div>
-</div>
-</section>
 
 </body>
 </html>
