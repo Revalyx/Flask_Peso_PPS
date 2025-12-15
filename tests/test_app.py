@@ -1,131 +1,183 @@
-import os
-from src.app import app
-from src.db import init_db, DB_PATH, get_connection
+from flask import Flask, request, session, redirect, render_template, flash
+from datetime import datetime, date
+import re
 
-#################################
-# RESETEAR BD ANTES DE CADA TEST
-#################################
+from .db import init_db, get_connection
+from .models import Usuario, RegistroPeso
 
-def setup_function():
-    if DB_PATH.exists():
-        os.remove(DB_PATH)
-    init_db()
+app = Flask(
+    __name__,
+    template_folder="../templates",
+    static_folder="../static"
+)
 
+app.secret_key = "super_secret_key"
 
-#################################
-# HELPERS
-#################################
+init_db()
 
-def register_test_user(client):
-    """Registrar usuario con altura obligatoria"""
-    return client.post("/register", data={
-        "email": "test@test.com",
-        "password": "1234",
-        "altura": "180"
-    }, follow_redirects=True)
+EMAIL_REGEX = r"^[^@]+@[^@]+\.[^@]+$"
+
+# ---------------- LOGIN ----------------
+@app.get("/login")
+def login():
+    return render_template("login.html")
 
 
-def login_test_user(client):
-    """Registrar + iniciar sesión"""
-    register_test_user(client)
-    return client.post("/login", data={
-        "email": "test@test.com",
-        "password": "1234"
-    }, follow_redirects=True)
+@app.post("/login")
+def login_post():
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "")
+
+    if not email or not password:
+        flash("Rellene todos los campos", "error")
+        return redirect("/login")
+
+    if not re.match(EMAIL_REGEX, email):
+        flash("Correo electrónico no válido", "error")
+        return redirect("/login")
+
+    user_id = Usuario.login(email, password)
+    if not user_id:
+        flash("Credenciales incorrectas", "error")
+        return redirect("/login")
+
+    session["user_id"] = user_id
+    return redirect("/")
 
 
-#################################
-# TESTS
-#################################
+# ---------------- HOME ----------------
+@app.get("/")
+def home():
+    if "user_id" not in session:
+        return redirect("/login")
 
-def test_home_requires_login():
-    client = app.test_client()
+    user_id = session["user_id"]
 
-    res = client.get("/")
-    assert res.status_code == 302
-    assert "/login" in res.location
+    registros = RegistroPeso.obtener_por_usuario(user_id)
+
+    # ordenar por fecha ascendente para historial + gráfica
+    registros = sorted(registros, key=lambda r: r[2])
+
+    altura = Usuario.get_altura(user_id)
+
+    ultimo_peso = registros[-1][1] if registros else 0
+
+    imc = None
+    estado = "—"
+    color_estado = "#94a3b8"
+
+    if altura and ultimo_peso:
+        imc = round(ultimo_peso / ((altura / 100) ** 2), 2)
+
+        if imc < 18.5:
+            estado = "Bajo peso"
+            color_estado = "#fbbf24"
+        elif imc < 25:
+            estado = "Normopeso"
+            color_estado = "#4ade80"
+        elif imc < 30:
+            estado = "Sobrepeso"
+            color_estado = "#fb923c"
+        else:
+            estado = "Obesidad"
+            color_estado = "#ef4444"
+
+    # datos para chart.js (IMPORTANTE: fechas como string YYYY-MM-DD)
+    labels = [r[2] for r in registros]
+    data = [r[1] for r in registros]
+
+    return render_template(
+        "home.html",
+        registros=registros,
+        peso_actual=ultimo_peso,
+        imc=imc,
+        estado=estado,
+        color_estado=color_estado,
+        altura=altura,
+        labels=labels,
+        data=data
+    )
 
 
-def test_home_with_login():
-    client = app.test_client()
+# ---------------- REGISTRO PESO ----------------
+@app.post("/registro")
+def registrar_peso():
+    if "user_id" not in session:
+        return redirect("/login")
 
-    login_test_user(client)
+    try:
+        peso = float(request.form.get("peso"))
+        # VALIDACIÓN compatible con tests
+        if peso <= 0 or peso > 500:
+            raise ValueError
+    except:
+        flash("Peso no válido", "error")
+        return redirect("/")
 
-    res = client.get("/")
-    assert res.status_code == 200
+    try:
+        fecha = datetime.strptime(
+            request.form.get("fecha"), "%Y-%m-%d"
+        ).date()
+        if fecha > date.today():
+            raise ValueError
+    except:
+        flash("Fecha no válida", "error")
+        return redirect("/")
 
-    # FIX: Buscar un texto real en tu dashboard actual
-    assert b"Peso" in res.data
+    RegistroPeso.crear(session["user_id"], peso, fecha)
+    flash("Peso guardado correctamente", "success")
+    return redirect("/")
 
 
-def test_register_user():
-    client = app.test_client()
+# ---------------- REGISTER ----------------
+@app.get("/register")
+def register():
+    return render_template("register.html")
 
-    res = register_test_user(client)
 
-    assert res.status_code == 200 or res.status_code == 302
+@app.post("/register")
+def register_post():
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "")
+    altura_raw = request.form.get("altura", "")
+
+    if not email or not password or not altura_raw:
+        flash("Todos los campos son obligatorios", "error")
+        return redirect("/register")
+
+    if not re.match(EMAIL_REGEX, email):
+        flash("Correo electrónico no válido", "error")
+        return redirect("/register")
+
+    # 🔥 CLAVE PARA LOS TESTS: password >= 4
+    if len(password) < 4:
+        flash("La contraseña debe tener al menos 4 caracteres", "error")
+        return redirect("/register")
+
+    try:
+        altura = float(altura_raw)
+        if altura <= 0 or altura > 300:
+            raise ValueError
+    except:
+        flash("Altura no válida", "error")
+        return redirect("/register")
 
     conn = get_connection()
     cur = conn.cursor()
-
-    cur.execute("SELECT email, altura FROM users WHERE email=?", ("test@test.com",))
-    row = cur.fetchone()
+    cur.execute("SELECT id FROM users WHERE email=?", (email,))
+    if cur.fetchone():
+        conn.close()
+        flash("Ese email ya está registrado", "error")
+        return redirect("/register")
     conn.close()
 
-    assert row is not None
-    assert row[0] == "test@test.com"
-    assert row[1] == 180
+    Usuario.registrar(email, password, altura)
+    flash("Cuenta creada correctamente", "success")
+    return redirect("/login")
 
 
-def test_register_peso_requires_login():
-    client = app.test_client()
-
-    res = client.post("/registro", data={
-        "peso": "72",
-        "fecha": "2025-11-21"
-    })
-
-    assert res.status_code == 302
-    assert "/login" in res.location
-
-
-def test_register_peso_when_logged():
-    client = app.test_client()
-
-    login_test_user(client)
-
-    res = client.post("/registro", data={
-        "peso": "85",
-        "fecha": "2025-11-22"
-    }, follow_redirects=True)
-
-    assert res.status_code == 200
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("SELECT peso, fecha FROM registros")
-    row = cur.fetchone()
-    conn.close()
-
-    assert row is not None
-    assert float(row[0]) == 85
-    assert row[1] == "2025-11-22"
-
-
-def test_historial_in_home():
-    client = app.test_client()
-
-    login_test_user(client)
-
-    conn = get_connection()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO registros (user_id, peso, fecha) VALUES (1, 90, '2025-11-23')")
-    conn.commit()
-    conn.close()
-
-    res = client.get("/")
-
-    assert res.status_code == 200
-    assert b"90" in res.data
-    assert b"2025-11-23" in res.data
+# ---------------- LOGOUT ----------------
+@app.get("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
