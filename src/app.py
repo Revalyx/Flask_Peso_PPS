@@ -11,7 +11,7 @@ from .db import init_db, get_connection
 from .models import Usuario, RegistroPeso
 
 load_dotenv()
-app.secret_key = os.environ.get("SECRET_KEY")
+
 
 app = Flask(
     __name__,
@@ -19,7 +19,7 @@ app = Flask(
     static_folder="../static"
 )
 
-
+app.secret_key = os.environ.get("SECRET_KEY")
 
 init_db()
 
