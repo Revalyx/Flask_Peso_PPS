@@ -19,7 +19,8 @@ app = Flask(
     static_folder="../static"
 )
 
-app.secret_key = os.environ.get("SECRET_KEY")
+app.secret_key = os.environ.get("SECRET_KEY", "ci-test-secret-key")
+
 
 init_db()
 
