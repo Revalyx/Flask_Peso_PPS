@@ -19,3 +19,7 @@ htmlcov/
 # Entornos
 venv/
 env/
+
+# Variables de entorno
+.env
+
