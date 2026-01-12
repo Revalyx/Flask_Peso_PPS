@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Base de datos SQLite
+*.db
+
+# Coverage
+.coverage
+htmlcov/
+
+# pytest
+.pytest_cache/
+
+# VSCode
+.vscode/
+
+# Entornos
+venv/
+env/
+
+# Variables de entorno
+.env
+
