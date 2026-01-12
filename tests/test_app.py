@@ -127,3 +127,48 @@ def test_historial_in_home():
 
     assert res.status_code == 200
     assert b"90" in res.data
+
+def test_get_login():
+    client = app.test_client()
+    res = client.get("/login")
+    assert res.status_code == 200
+
+
+def test_get_register():
+    client = app.test_client()
+    res = client.get("/register")
+    assert res.status_code == 200
+
+
+def test_login_wrong_credentials():
+    client = app.test_client()
+    register_test_user(client)
+
+    res = client.post("/login", data={
+        "email": "test@test.com",
+        "password": "wrongpass"
+    }, follow_redirects=True)
+
+    assert res.status_code == 200
+
+
+def test_register_duplicate_email():
+    client = app.test_client()
+    register_test_user(client)
+
+    res = client.post("/register", data={
+        "email": "test@test.com",
+        "password": "12345678",
+        "altura": "180"
+    }, follow_redirects=True)
+
+    assert res.status_code == 200
+
+
+def test_register_peso_missing_data():
+    client = app.test_client()
+    login_test_user(client)
+
+    res = client.post("/registro", data={}, follow_redirects=True)
+    assert res.status_code == 200
+
