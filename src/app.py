@@ -1,16 +1,12 @@
 from flask import Flask, request, session, redirect, render_template, flash
 from datetime import datetime, date
 import re
-import os
-from dotenv import load_dotenv
-
-
-
 
 from .db import init_db, get_connection
 from .models import Usuario, RegistroPeso
 
-load_dotenv()
+
+
 
 
 app = Flask(
@@ -19,7 +15,9 @@ app = Flask(
     static_folder="../static"
 )
 
-app.secret_key = os.environ.get("SECRET_KEY", "ci-test-secret-key")
+
+app.secret_key = "super_secret_key"
+
 
 
 init_db()
