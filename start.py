@@ -1,6 +1,6 @@
 import os
-import subprocess
 import sys
+import subprocess
 import platform
 
 VENV_DIR = "venv"
@@ -9,32 +9,42 @@ def run(cmd):
     print(f"> {cmd}")
     subprocess.check_call(cmd, shell=True)
 
-def main():
-    python_cmd = sys.executable
-
-    # 1. Crear venv si no existe
-    if not os.path.isdir(VENV_DIR):
-        print("Creando entorno virtual...")
-        run(f"{python_cmd} -m venv {VENV_DIR}")
-
-    # 2. Determinar python dentro del venv
+def get_venv_python():
     if platform.system() == "Windows":
-        venv_python = os.path.join(VENV_DIR, "Scripts", "python")
-    else:
-        venv_python = os.path.join(VENV_DIR, "bin", "python")
+        return os.path.join(VENV_DIR, "Scripts", "python.exe")
+    return os.path.join(VENV_DIR, "bin", "python")
 
-    # 3. Actualizar pip
-    run(f"{venv_python} -m pip install --upgrade pip")
+def main():
+    if not os.path.exists(VENV_DIR):
+        print("Creando entorno virtual...")
+        run(f'"{sys.executable}" -m venv {VENV_DIR}')
 
-    # 4. Instalar dependencias
-    run(f"{venv_python} -m pip install -r requirements.txt")
+    venv_python = get_venv_python()
 
-    # 5. Ejecutar la app
+    if not os.path.exists(venv_python):
+        print("ERROR: El entorno virtual no se creó correctamente.")
+        print("En Linux asegúrese de tener instalado: python3-venv")
+        sys.exit(1)
+
     try:
-        run(f"{venv_python} run.py")
-    except KeyboardInterrupt:
-        print("\nServidor detenido por el usuario.")
+        print("Actualizando pip...")
+        run(f'"{venv_python}" -m ensurepip --upgrade')
+        run(f'"{venv_python}" -m pip install --upgrade pip')
 
+        print("Instalando dependencias...")
+        run(f'"{venv_python}" -m pip install -r requirements.txt')
+
+        print("Arrancando aplicación...")
+        run(f'"{venv_python}" run.py')
+
+    except subprocess.CalledProcessError:
+        print("\nERROR durante la instalación.")
+        print("Puede intentar el modo manual:")
+        print("  python3 -m venv venv")
+        print("  source venv/bin/activate")
+        print("  pip install -r requirements.txt")
+        print("  python run.py")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
