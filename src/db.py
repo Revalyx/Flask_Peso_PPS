@@ -15,7 +15,9 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            altura REAL
+            altura REAL,
+            intentos_fallidos INTEGER DEFAULT 0,  -- Cuenta los fallos totales
+            bloqueado_hasta TEXT                  -- Marca de tiempo del desbloqueo
         )
     """)
 

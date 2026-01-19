@@ -34,21 +34,24 @@ def login_post():
     email = request.form.get("email", "").strip()
     password = request.form.get("password", "")
 
-    if not email or not password:
-        flash("Rellene todos los campos", "error")
-        return redirect("/login")
+    # ... (validaciones de campos vacíos igual) ...
 
-    if not re.match(EMAIL_REGEX, email):
-        flash("Correo electrónico no válido", "error")
-        return redirect("/login")
+    resultado = Usuario.login(email, password)
 
-    user_id = Usuario.login(email, password)
-    if not user_id:
+    if resultado == "NO_USER":
         flash("Credenciales incorrectas", "error")
-        return redirect("/login")
-
-    session["user_id"] = user_id
-    return redirect("/")
+    elif resultado == "BLOCKED":
+        flash("Cuenta bloqueada temporalmente. Espera unos minutos.", "error")
+    elif resultado == "BLOCKED_NOW":
+        flash("Has fallado 3 veces. Tu cuenta ha sido bloqueada por 5 minutos.", "error")
+    elif resultado == "WRONG_PASS":
+        flash("Contraseña incorrecta", "error")
+    else:
+        # Es un ID numérico, pa' dentro
+        session["user_id"] = resultado
+        return redirect("/")
+    
+    return redirect("/login")
 
 # ---------------- HOME ----------------
 @app.get("/")

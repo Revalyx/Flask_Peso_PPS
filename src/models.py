@@ -1,5 +1,6 @@
 # models.py
 from .db import get_connection
+from datetime import datetime, timedelta  
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -24,19 +25,49 @@ class Usuario:
     def login(email, password):
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT id, password FROM users WHERE email=?", (email,))
+        # Pedimos los campos de seguridad extra
+        cur.execute("SELECT id, password, intentos_fallidos, bloqueado_hasta FROM users WHERE email=?", (email,))
         row = cur.fetchone()
-        conn.close()
 
         if not row:
-            return None
+            conn.close()
+            return "NO_USER"
 
-        user_id, password_hash = row
+        user_id, password_hash, intentos, bloqueado_hasta = row
+        
+        # --- PASO 1: VERIFICAR SI ESTÁ CASTIGADO ---
+        if bloqueado_hasta:
+            bloqueo = datetime.strptime(bloqueado_hasta, "%Y-%m-%d %H:%M:%S")
+            if datetime.now() < bloqueo:
+                conn.close()
+                return "BLOCKED" # Aún le queda tiempo
 
+        # --- PASO 2: COMPROBAR CONTRASEÑA ---
         if check_password_hash(password_hash, password):
+            # ¡Entró! Borrón y cuenta nueva
+            cur.execute("UPDATE users SET intentos_fallidos=0, bloqueado_hasta=NULL WHERE id=?", (user_id,))
+            conn.commit()
+            conn.close()
             return user_id
-
-        return None
+        else:
+            # ¡Falló! Sumamos uno
+            nuevos_intentos = intentos + 1
+            nuevo_bloqueo = None
+            estado = "WRONG_PASS"
+            
+            # Si el número de fallos es múltiplo de 3 (3, 6, 9...), CASTIGO
+            if nuevos_intentos % 3 == 0:
+                # 5 minutos de castigo
+                nuevo_bloqueo = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+                estado = "BLOCKED_NOW"
+            
+            # Guardamos el desastre en la BD
+            cur.execute("UPDATE users SET intentos_fallidos=?, bloqueado_hasta=? WHERE id=?", 
+                       (nuevos_intentos, nuevo_bloqueo, user_id))
+            conn.commit()
+            conn.close()
+            
+            return estado
 
 
     @staticmethod
