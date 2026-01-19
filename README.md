@@ -38,7 +38,7 @@ Permite gestionar usuarios, almacenar registros históricos de peso y calcular i
 - **coverage / coveralls**  
   Herramientas utilizadas para medir y visualizar la cobertura de código de los tests. `coverage` calcula qué partes del código están siendo ejecutadas durante las pruebas, mientras que `coveralls` permite publicar estos resultados de forma visual en el repositorio.
 
-  **Werkzeug (Security)**
+- **Werkzeug (Security)**
   Librería fundamental para la seguridad de la aplicación. Se encarga de hashear las contraseñas utilizando el algoritmo Scrypt y gestiona la generación automática del **salt** para cada usuario, asegurando un almacenamiento irreversible y robusto de las credenciales.
 
 
@@ -83,3 +83,4 @@ La aplicación utiliza una SECRET_KEY fija para uso académico (En producción n
 
 
 **Proyecto orientado a prácticas y aprendizaje**
+
