@@ -155,6 +155,11 @@ def register_post():
         flash("La contraseña debe tener al menos 8 caracteres", "error")
         return redirect("/register")
 
+    if len(password) > 64:
+        flash("La contraseña no puede superar 64 caracteres", "error")
+        return redirect("/register")
+    
+
     try:
         altura = float(altura_raw)
         if altura < 50 or altura > 300:
