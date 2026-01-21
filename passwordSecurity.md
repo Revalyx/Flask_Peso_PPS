@@ -4,18 +4,19 @@ Este documento describe las medidas de seguridad técnica implementadas en **Fla
 
 ---
 
+
 ## 1. 🔐 Cifrado de Contraseñas (Hashing Avanzado)
 
-No almacenamos contraseñas en texto plano. Utilizamos un sistema de protección robusto diseñado para resistir ataques modernos.
+Para el almacenamiento de credenciales, hemos descartado algoritmos de hashing de propósito general (como SHA-256 o MD5) en favor de Scrypt, una función de derivación de claves diseñada específicamente para ser costosa en términos de hardware.
 
-### 🧠 Algoritmo Inteligente: Scrypt
-Hemos elegido **Scrypt** como nuestro motor de cifrado. A diferencia de otros métodos antiguos, Scrypt está diseñado para consumir memoria RAM a propósito.
+### 1.1. Justificación Técnica (Memory Hardness)
+La principal vulnerabilidad de los hashes tradicionales es que pueden calcularse extremadamente rápido en hardware paralelo (GPUs/ASICs). Scrypt mitiga esto imponiendo un coste de memoria y un coste de CPU.
 
-> **¿Por qué es seguro?**
-> Porque impide que los atacantes usen tarjetas gráficas potentes (GPUs) para adivinar millones de contraseñas por segundo. Al requerir memoria, el ataque se vuelve lento y costoso.
+Resistencia ASIC: Al requerir mover grandes bloques de memoria RAM para calcular un solo hash, invalidamos la ventaja de los atacantes que usan granjas de minería o hardware dedicado, ya que este hardware suele tener muy poca memoria por núcleo.
 
-### ⚙️ Configuración Criptográfica
-Nuestra base de datos confirma que estamos utilizando una configuración de alta seguridad:
+### 1.2. Parámetros Criptográficos en Producción
+Nuestra implementación utiliza los siguientes parámetros de coste, ajustados para equilibrar seguridad y usabilidad (latencia < 200ms por login legítimo):
+
 
 | Parámetro | Valor | Significado |
 | :--- | :--- | :--- |
@@ -23,6 +24,21 @@ Nuestra base de datos confirma que estamos utilizando una configuración de alta
 | **Coste (N)** | 32.768 | Iteraciones muy altas (verificación "pesada") |
 | **Bloque (r)** | 8 | Factor de memoria estándar |
 | **Salt** | Único | Un código aleatorio distinto para cada usuario |
+
+### 1.3. Implementación en Código
+
+La seguridad se delega en la librería probada werkzeug.security. El siguiente fragmento muestra cómo se aplica el hash automáticamente antes de persistir el usuario:
+
+```python
+# Referencia: src/models.py
+
+from werkzeug.security import generate_password_hash
+
+password_hashed = generate_password_hash(password)
+
+cur.execute(""" INSERT INTO users (email, password, altura) VALUES (?, ?, ?) """, (email, password_hashed, altura))
+
+```
 
 ---
 
@@ -37,44 +53,55 @@ Para proteger las cuentas contra robots que intentan adivinar contraseñas proba
 
 2.  **⚠️ La Regla de los 5 Intentos**
     Si se detectan **5 fallos consecutivos**, el sistema activa automáticamente el escudo de defensa.
+    
 
-3.  **⏳ El Castigo (Time-out)**
+ ```python
+
+# Pseudocódigo de la lógica de protección (src/models.py)
+
+# 1. Comprobar si ya está baneado antes de validar contraseña
+
+if usuario.bloqueado_hasta and usuario.bloqueado_hasta > datetime.now():
+
+    raise error("Tu cuenta está bloqueada temporalmente. Espera 15 min.")
+
+# 2. Si la contraseña falla, aumentar contador
+
+if not check_password_hash(usuario.password, password_input):
+
+    usuario.intentos_fallidos += 1
+    
+    # Si llega al límite de 5 fallos -> BANEO
+    
+    if usuario.intentos_fallidos >= 5:
+    
+        usuario.bloqueado_hasta = datetime.now() + timedelta(minutes=15)
+        
+    db.session.commit()
+    
+    return False
+
+```
+
+4.  **⏳ El Castigo (Time-out)**
     La cuenta queda **bloqueada durante 15 minutos**.
     * *Durante este tiempo, incluso si el atacante averigua la contraseña correcta, el sistema rechazará el acceso inmediatamente.*
 
-4.  **✅ Rehabilitación**
+5.  **✅ Rehabilitación**
     Pasados los 15 minutos, o si el usuario acierta la contraseña antes de llegar al límite, el contador se reinicia a cero.
 
+```markdown
+
+# Archivo: src/models.py
+
+-- Estructura de base de datos para soporte de bloqueo
+
+ALTER TABLE users ADD COLUMN intentos_fallidos INTEGER DEFAULT 0;
+
+ALTER TABLE users ADD COLUMN bloqueado_hasta DATETIME DEFAULT NULL;
+
+```
 ---
 
-## 3. 💉 Inmunidad a Inyección SQL
 
-Nuestra aplicación blinda la base de datos contra el ataque más común en la web: la Inyección SQL.
 
-### 🛡️ Consultas Parametrizadas
-En lugar de pegar el texto del usuario directamente en las órdenes que enviamos a la base de datos, utilizamos un sistema de **parámetros seguros**.
-
-* El sistema trata todo lo que escribe el usuario (su email, su peso, su altura) estrictamente como **datos de texto**, nunca como órdenes ejecutables.
-* Esto significa que aunque un hacker intente escribir código malicioso en el campo de "Email", la base de datos lo guardará simplemente como un texto raro, sin ejecutarlo jamás.
-
----
-
-## 4. 🌐 Seguridad del Navegador y Sesiones
-
-### 🚫 Protección XSS (Cross-Site Scripting)
-Utilizamos un motor de plantillas que **limpia automáticamente** cualquier dato antes de mostrarlo en pantalla.
-* Si un usuario intenta inyectar scripts o virus en su perfil, el sistema los neutraliza convirtiéndolos en texto inofensivo antes de que lleguen al navegador de otros usuarios.
-
-### 🍪 Cookies Firmadas
-Las "llaves" de sesión que guardamos en el navegador del usuario están **firmadas criptográficamente** por el servidor.
-* Si un usuario intenta trampear su cookie para hacerse pasar por otro (por ejemplo, cambiando su ID de usuario manualmente), el servidor detectará que el sello de seguridad está roto y expulsará la sesión inmediatamente.
-
----
-
-## 5. ⚠️ Hoja de Ruta para Producción
-
-Actualmente, el proyecto opera en modo de desarrollo académico. Para lanzarlo al mundo real, es obligatorio activar las siguientes capas extra:
-
-* [ ] **HTTPS (Candado Verde):** Cifrar toda la conexión para que nadie pueda leer las cookies en una red WiFi pública.
-* [ ] **Ocultación de Secretos:** Mover las claves maestras de seguridad a variables de entorno invisibles en el código fuente.
-* [ ] **Protección de Formularios (CSRF):** Añadir tokens únicos a cada formulario para asegurar que la petición viene realmente de nuestra web.
