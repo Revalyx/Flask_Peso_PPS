@@ -1,99 +1,59 @@
-# 🛡️ Arquitectura de Seguridad y Protocolos de Defensa
+🛡️ Arquitectura de Seguridad y Protocolos de Defensa
+Este documento describe las medidas de seguridad técnica implementadas en Flask Peso PPS. Nuestro objetivo es garantizar la confidencialidad de los datos del usuario, siguiendo las mejores prácticas de criptografía moderna.
 
-Este documento describe en profundidad las medidas de seguridad técnica implementadas en **Flask Peso PPS**. El objetivo es garantizar la confidencialidad, integridad y disponibilidad de los datos del usuario, siguiendo las mejores prácticas de OWASP y criptografía moderna.
+1. 🔐 Cifrado de Contraseñas (Hashing Avanzado)
+No almacenamos contraseñas en texto plano. Utilizamos un sistema de protección robusto diseñado para resistir ataques modernos.
 
----
+🧠 Algoritmo Inteligente: Scrypt
+Hemos elegido Scrypt como nuestro motor de cifrado. A diferencia de otros métodos antiguos, Scrypt está diseñado para consumir memoria RAM a propósito.
 
-## 1. Cifrado de Contraseñas (Hashing Avanzado)
+¿Por qué es seguro? Porque impide que los atacantes usen tarjetas gráficas potentes (GPUs) para adivinar millones de contraseñas por segundo. Al requerir memoria, el ataque se vuelve lento y costoso.
 
-No almacenamos contraseñas en texto plano. Utilizamos un esquema de **hashing unidireccional** robusto resistente a ataques por hardware dedicado (ASIC/GPU).
+⚙️ Configuración Criptográfica
+Nuestra base de datos confirma que estamos utilizando una configuración de alta seguridad:
 
-### Algoritmo: Scrypt
-Elegimos **Scrypt** sobre alternativas como *PBKDF2* o *BCrypt* debido a su **dureza de memoria** (Memory Hardness). Scrypt requiere una cantidad significativa de RAM para calcular cada hash, lo que neutraliza la ventaja de los atacantes que utilizan tarjetas gráficas (GPUs) para romper contraseñas masivamente.
+Factor de Coste: Muy alto (32.768 iteraciones), lo que hace que cada verificación de contraseña sea "pesada" para una máquina atacante.
 
-### Configuración Criptográfica
-Nuestra implementación (vía `Werkzeug`) utiliza los siguientes parámetros de coste, verificables en la base de datos:
+Salt Único: Cada usuario tiene un código aleatorio único mezclado con su contraseña. Esto significa que dos usuarios con la misma contraseña ("123456") tendrán códigos cifrados totalmente diferentes en nuestra base de datos.
 
-* **Método:** `scrypt`
-* **Factor de Coste (N):** `32768` (2^15 iteraciones).
-* **Tamaño de Bloque (r):** `8`.
-* **Paralelización (p):** `1`.
+2. 🛑 Sistema Anti-Fuerza Bruta (Bloqueo de Cuenta)
+Para proteger las cuentas contra robots que intentan adivinar contraseñas probando miles de combinaciones, hemos diseñado un protocolo de "Bloqueo Temporal".
 
-> **Formato de Almacenamiento:**
-> En la base de datos, el hash se guarda con el formato:
-> `scrypt:32768:8:1$<salt_aleatorio>$<hash_resultante>`
->
-> *El **Salt** es único por usuario, impidiendo ataques de Rainbow Tables (tablas precomputadas).*
+⏱️ ¿Cómo funciona el "Baneo"?
+El sistema vigila constantemente los intentos de acceso fallidos:
 
----
+Vigilancia: Si alguien se equivoca de contraseña, el sistema anota un "fallo" en su expediente.
 
-## 2. Sistema Anti-Fuerza Bruta (Account Locking)
+La Regla de los 5 Intentos: Si se detectan 5 fallos consecutivos, el sistema activa una defensa automática.
 
-Para proteger las cuentas contra intentos de adivinanza de contraseñas automatizados, implementamos un sistema de bloqueo temporal inteligente.
+El Castigo (Time-out): La cuenta queda bloqueada durante 15 minutos. Durante este tiempo, incluso si el atacante averigua la contraseña correcta, el sistema rechazará el acceso inmediatamente sin ni siquiera comprobarla.
 
-### Esquema de Base de Datos
-Se añaden dos columnas de control a la tabla `users` para gestionar el estado de seguridad de cada cuenta:
+Rehabilitación: Pasados los 15 minutos, o si el usuario acierta la contraseña antes de llegar al límite, el contador se reinicia a cero.
 
-```sql
-ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0;
-ALTER TABLE users ADD COLUMN locked_until DATETIME DEFAULT NULL;
-```
-Algoritmo de Defensa ("Check-Lock-Verify")
-El flujo de autenticación en la ruta /login sigue esta lógica estricta:
+3. 💉 Inmunidad a Inyección SQL
+Nuestra aplicación blinda la base de datos contra el ataque más común en la web: la Inyección SQL.
 
-Fase de Verificación de Bloqueo: Antes de verificar la contraseña, el sistema consulta el campo locked_until.
+🛡️ Consultas Parametrizadas
+En lugar de pegar el texto del usuario directamente en las órdenes que enviamos a la base de datos, utilizamos un sistema de parámetros seguros.
 
-Si la fecha actual < locked_until: Se rechaza la petición inmediatamente lanzando un error de "Cuenta bloqueada temporalmente". No se procesa el hash (ahorrando CPU).
+El sistema trata todo lo que escribe el usuario (su email, su peso, su altura) estrictamente como datos de texto, nunca como órdenes ejecutables.
 
-Fase de Validación de Credenciales:
+Esto significa que aunque un hacker intente escribir código malicioso en el campo de "Email", la base de datos lo guardará simplemente como un texto raro, sin ejecutarlo.
 
-Si la contraseña es INCORRECTA:
+4. 🌐 Seguridad del Navegador y Sesiones
+🚫 Protección XSS (Cross-Site Scripting)
+Utilizamos un motor de plantillas que limpia automáticamente cualquier dato antes de mostrarlo en pantalla. Si un usuario intenta inyectar scripts o virus en su perfil, el sistema los neutraliza convirtiéndolos en texto inofensivo antes de que lleguen al navegador de otros usuarios.
 
-Se incrementa el contador failed_attempts.
+🍪 Cookies Firmadas
+Las "llaves" de sesión que guardamos en el navegador del usuario están firmadas criptográficamente por el servidor.
 
-Regla de Baneo: Si failed_attempts >= 5, se establece locked_until a 15 minutos en el futuro.
+Si un usuario intenta trampear su cookie para hacerse pasar por otro (por ejemplo, cambiando su ID de usuario manualmente), el servidor detectará que el sello de seguridad está roto y expulsará la sesión inmediatamente.
 
-Si la contraseña es CORRECTA:
+5. ⚠️ Hoja de Ruta para Producción
+Actualmente, el proyecto opera en modo de desarrollo académico. Para lanzarlo al mundo real, es obligatorio activar las siguientes capas extra:
 
-Se restablecen los contadores: failed_attempts = 0 y locked_until = NULL.
+HTTPS (Candado Verde): Cifrar toda la conexión para que nadie pueda leer las cookies en una red WiFi pública.
 
-Se permite el acceso al sistema.
+Ocultación de Secretos: Mover las claves maestras de seguridad a variables de entorno invisibles en el código fuente.
 
-3. 💉 Prevención de Inyección SQL (SQLi)
-La aplicación es inmune a la inyección SQL clásica gracias al uso estricto de Consultas Parametrizadas en la capa de acceso a datos (src/db.py y src/models.py).
-
-Implementación
-En lugar de concatenar cadenas (lo cual es vulnerable), utilizamos los marcadores de posición (?) nativos del driver sqlite3 de Python. Esto asegura que el motor de base de datos trate los inputs del usuario estrictamente como datos literales, nunca como código ejecutable.
-
-Ejemplo de código seguro implementado:
-
-Python
-
-# ✅ CORRECTO: El motor escapa automáticamente el input
-cur.execute("INSERT INTO users (email, password, altura) VALUES (?, ?, ?)", (email, password, altura))
-
-# ❌ INCORRECTO (Vulnerable): Nunca usado en este proyecto
-# cur.execute(f"INSERT INTO users ... VALUES ('{email}', ...)")
-4. 🌐 Seguridad Frontend y Sesiones
-Protección contra XSS (Cross-Site Scripting)
-Utilizamos el motor de plantillas Jinja2, que está configurado por defecto con Auto-Escaping.
-
-Cualquier dato renderizado en el HTML (ej. {{ usuario.nombre }}) se escapa automáticamente.
-
-Esto convierte caracteres peligrosos (<, >, &) en entidades HTML seguras, impidiendo la inyección de scripts maliciosos en el navegador de la víctima.
-
-Gestión de Sesiones
-Las sesiones de usuario se gestionan mediante cookies firmadas criptográficamente (Secure Cookies).
-
-Integridad: La cookie contiene una firma generada con la SECRET_KEY del servidor. Si un usuario intenta manipular el contenido de su cookie (ej. cambiar su user_id manualmente), la firma será inválida y el servidor rechazará la sesión.
-
-5. ⚠️ Notas para Despliegue (Roadmap)
-Actualmente, el proyecto está configurado para un entorno de desarrollo/académico. Para un despliegue en producción (Live), se deben aplicar las siguientes mejoras obligatorias:
-
-HTTPS (TLS/SSL): Obligatorio para cifrar el tráfico en tránsito y proteger la cookie de sesión contra intercepciones.
-
-Variables de Entorno: La SECRET_KEY no debe estar escrita directamente en el código (src/app.py), sino cargarse desde un archivo .env no versionado.
-
-Flag Secure en Cookies: Configurar SESSION_COOKIE_SECURE = True en Flask para asegurar que las cookies solo viajen a través de conexiones HTTPS seguras.
-
-Protección CSRF: Implementar tokens anti-CSRF (vía Flask-WTF) en todos los formularios POST para prevenir peticiones falsificadas en nombre del usuario.
+Protección de Formularios (CSRF): Añadir tokens únicos a cada formulario para asegurar que la petición viene realmente de nuestra web y no de un enlace trampa externo.
