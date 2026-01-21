@@ -83,11 +83,11 @@ if not check_password_hash(usuario.password, password_input):
 
 ```
 
-4.  **⏳ El Castigo (Time-out)**
+3.  **⏳ El Castigo (Time-out)**
    La cuenta queda **bloqueada durante 15 minutos**.
     * **Defensa de Recursos:** Esta fase no solo protege la contraseña, sino también el servidor. Al rechazar la petición chequeando simplemente una fecha (`bloqueado_hasta`), evitamos ejecutar el cálculo pesado de *Scrypt*. Esto significa que aunque un atacante nos bombardee con millones de peticiones, el servidor las descartará en microsegundos sin saturarse.
 
-5.  **✅ Rehabilitación**
+4.  **✅ Rehabilitación**
     El sistema es capaz de "curarse" solo sin intervención de un administrador.
     * **Reinicio por Éxito:** Si el usuario acierta su contraseña antes de llegar al límite (ej. al 4º intento), el sistema asume que fue un error humano y resetea los contadores a cero inmediatamente.
     * **Expiración del Castigo:** Pasados los 15 minutos, la restricción temporal caduca automáticamente, permitiendo al usuario legítimo volver a intentarlo sin tener que contactar con soporte.
