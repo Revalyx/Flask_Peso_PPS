@@ -10,9 +10,7 @@ Este documento describe las medidas de seguridad técnica implementadas en **Fla
 Para el almacenamiento de credenciales, hemos descartado algoritmos de hashing de propósito general (como SHA-256 o MD5) en favor de Scrypt, una función de derivación de claves diseñada específicamente para ser costosa en términos de hardware.
 
 ### 1.1. Justificación Técnica (Memory Hardness)
-La principal vulnerabilidad de los hashes tradicionales es que pueden calcularse extremadamente rápido en hardware paralelo (GPUs/ASICs). Scrypt mitiga esto imponiendo un coste de memoria y un coste de CPU.
-
-Resistencia ASIC: Al requerir mover grandes bloques de memoria RAM para calcular un solo hash, invalidamos la ventaja de los atacantes que usan granjas de minería o hardware dedicado, ya que este hardware suele tener muy poca memoria por núcleo.
+La principal vulnerabilidad de los hashes tradicionales es que pueden calcularse extremadamente rápido en hardware paralelo (GPUs/ASICs). Scrypt mitiga esto imponiendo un coste de memoria y un coste de CPU. Resistencia ASIC: Al requerir mover grandes bloques de memoria RAM para calcular un solo hash, invalidamos la ventaja de los atacantes que usan granjas de minería o hardware dedicado, ya que este hardware suele tener muy poca memoria por núcleo.
 
 ### 1.2. Parámetros Criptográficos en Producción
 Nuestra implementación utiliza los siguientes parámetros de coste, ajustados para equilibrar seguridad y usabilidad (latencia < 200ms por login legítimo):
@@ -30,7 +28,7 @@ Nuestra implementación utiliza los siguientes parámetros de coste, ajustados p
 La seguridad se delega en la librería probada werkzeug.security. El siguiente fragmento muestra cómo se aplica el hash automáticamente antes de persistir el usuario:
 
 ```python
-# Referencia: src/models.py
+# Archivo: src/models.py
 
 from werkzeug.security import generate_password_hash
 
@@ -49,15 +47,17 @@ Para proteger las cuentas contra robots que intentan adivinar contraseñas proba
 ### ⏱️ ¿Cómo funciona el protocolo de Baneo?
 
 1.  **👁️ Vigilancia Constante**
-    El sistema monitoriza cada intento de acceso. Si alguien se equivoca de contraseña, se anota un "fallo" en su expediente.
+    El sistema no tiene "amnesia". Cada vez que se produce un error de autenticación, este no se descarta; se registra persistentemente en la base de datos asociado al perfil del usuario.
+    * Esto nos permite detectar ataques lentos que ocurren a lo largo de varios minutos u horas, ya que el contador de fallos se mantiene guardado hasta que haya un login exitoso.
 
 2.  **⚠️ La Regla de los 5 Intentos**
-    Si se detectan **5 fallos consecutivos**, el sistema activa automáticamente el escudo de defensa.
+   Hemos configurado un "disparador" de seguridad ajustado a **5 intentos**.
+    * **¿Por qué 5?** Es el equilibrio perfecto: ofrece margen suficiente para que un usuario legítimo se equivoque al escribir (dedos torpes), pero es una ventana demasiado pequeña para que un robot de fuerza bruta tenga éxito adivinando una contraseña compleja. Al cruzar este límite, el sistema asume que se trata de un ataque automatizado.
     
 
  ```python
 
-# Pseudocódigo de la lógica de protección (src/models.py)
+# Archivo: src/models.py
 
 # 1. Comprobar si ya está baneado antes de validar contraseña
 
@@ -84,11 +84,13 @@ if not check_password_hash(usuario.password, password_input):
 ```
 
 4.  **⏳ El Castigo (Time-out)**
-    La cuenta queda **bloqueada durante 15 minutos**.
-    * *Durante este tiempo, incluso si el atacante averigua la contraseña correcta, el sistema rechazará el acceso inmediatamente.*
+   La cuenta queda **bloqueada durante 15 minutos**.
+    * **Defensa de Recursos:** Esta fase no solo protege la contraseña, sino también el servidor. Al rechazar la petición chequeando simplemente una fecha (`bloqueado_hasta`), evitamos ejecutar el cálculo pesado de *Scrypt*. Esto significa que aunque un atacante nos bombardee con millones de peticiones, el servidor las descartará en microsegundos sin saturarse.
 
 5.  **✅ Rehabilitación**
-    Pasados los 15 minutos, o si el usuario acierta la contraseña antes de llegar al límite, el contador se reinicia a cero.
+    El sistema es capaz de "curarse" solo sin intervención de un administrador.
+    * **Reinicio por Éxito:** Si el usuario acierta su contraseña antes de llegar al límite (ej. al 4º intento), el sistema asume que fue un error humano y resetea los contadores a cero inmediatamente.
+    * **Expiración del Castigo:** Pasados los 15 minutos, la restricción temporal caduca automáticamente, permitiendo al usuario legítimo volver a intentarlo sin tener que contactar con soporte.
 
 ```markdown
 
