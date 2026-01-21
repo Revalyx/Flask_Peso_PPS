@@ -37,6 +37,7 @@ Se añaden dos columnas de control a la tabla `users` para gestionar el estado d
 ```sql
 ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0;
 ALTER TABLE users ADD COLUMN locked_until DATETIME DEFAULT NULL;
+```
 Algoritmo de Defensa
 El flujo de autenticación (/login) sigue una lógica estricta de "Check-Lock-Verify":
 
