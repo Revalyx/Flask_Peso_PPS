@@ -55,10 +55,10 @@ class Usuario:
             nuevo_bloqueo = None
             estado = "WRONG_PASS"
             
-            # Si el número de fallos es múltiplo de 3 (3, 6, 9...), CASTIGO
-            if nuevos_intentos % 3 == 0:
-                # 5 minutos de castigo
-                nuevo_bloqueo = (datetime.now() + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+            # CAMBIO AQUÍ: Usamos 5 intentos y 15 minutos (como dice tu MD)
+            if nuevos_intentos >= 5:
+                # 15 minutos de castigo
+                nuevo_bloqueo = (datetime.now() + timedelta(minutes=15)).strftime("%Y-%m-%d %H:%M:%S")
                 estado = "BLOCKED_NOW"
             
             # Guardamos el desastre en la BD

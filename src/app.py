@@ -158,6 +158,12 @@ def register_post():
         flash("La contraseña debe tener al menos 8 caracteres", "error")
         return redirect("/register")
 
+    PASSWORD_REGEX = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'
+    
+    if not re.match(PASSWORD_REGEX, password):
+        flash("La contraseña debe incluir mayúscula, minúscula, número y símbolo (@$!%*?&)", "error")
+        return redirect("/register")
+        
     try:
         altura = float(altura_raw)
         if altura < 50 or altura > 300:
