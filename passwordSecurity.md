@@ -38,14 +38,14 @@ Se añaden dos columnas de control a la tabla `users` para gestionar el estado d
 ALTER TABLE users ADD COLUMN failed_attempts INTEGER DEFAULT 0;
 ALTER TABLE users ADD COLUMN locked_until DATETIME DEFAULT NULL;
 ```
-Algoritmo de Defensa
-El flujo de autenticación (/login) sigue una lógica estricta de "Check-Lock-Verify":
+Algoritmo de Defensa ("Check-Lock-Verify")
+El flujo de autenticación en la ruta /login sigue esta lógica estricta:
 
-Fase de Verificación de Bloqueo: Antes de verificar la contraseña, el sistema consulta locked_until.
+Fase de Verificación de Bloqueo: Antes de verificar la contraseña, el sistema consulta el campo locked_until.
 
 Si la fecha actual < locked_until: Se rechaza la petición inmediatamente lanzando un error de "Cuenta bloqueada temporalmente". No se procesa el hash (ahorrando CPU).
 
-Fase de Validación:
+Fase de Validación de Credenciales:
 
 Si la contraseña es INCORRECTA:
 
@@ -55,22 +55,22 @@ Regla de Baneo: Si failed_attempts >= 5, se establece locked_until a 15 minutos 
 
 Si la contraseña es CORRECTA:
 
-Se restablecen failed_attempts = 0 y locked_until = NULL.
+Se restablecen los contadores: failed_attempts = 0 y locked_until = NULL.
 
-Se permite el acceso.
+Se permite el acceso al sistema.
 
 3. 💉 Prevención de Inyección SQL (SQLi)
-La aplicación es inmune a la inyección SQL clásica gracias al uso estricto de Consultas Parametrizadas en la capa de acceso a datos.
+La aplicación es inmune a la inyección SQL clásica gracias al uso estricto de Consultas Parametrizadas en la capa de acceso a datos (src/db.py y src/models.py).
 
 Implementación
 En lugar de concatenar cadenas (lo cual es vulnerable), utilizamos los marcadores de posición (?) nativos del driver sqlite3 de Python. Esto asegura que el motor de base de datos trate los inputs del usuario estrictamente como datos literales, nunca como código ejecutable.
 
-Código Seguro (src/models.py):
+Ejemplo de código seguro implementado:
 
 Python
 
 # ✅ CORRECTO: El motor escapa automáticamente el input
-cur.execute("INSERT INTO users ... VALUES (?, ?, ?)", (email, password, altura))
+cur.execute("INSERT INTO users (email, password, altura) VALUES (?, ?, ?)", (email, password, altura))
 
 # ❌ INCORRECTO (Vulnerable): Nunca usado en este proyecto
 # cur.execute(f"INSERT INTO users ... VALUES ('{email}', ...)")
@@ -85,15 +85,15 @@ Esto convierte caracteres peligrosos (<, >, &) en entidades HTML seguras, impidi
 Gestión de Sesiones
 Las sesiones de usuario se gestionan mediante cookies firmadas criptográficamente (Secure Cookies).
 
-Integridad: La cookie contiene una firma generada con la SECRET_KEY del servidor. Si un usuario intenta manipular el contenido de su cookie (ej. cambiar su user_id), la firma será inválida y el servidor rechazará la sesión.
+Integridad: La cookie contiene una firma generada con la SECRET_KEY del servidor. Si un usuario intenta manipular el contenido de su cookie (ej. cambiar su user_id manualmente), la firma será inválida y el servidor rechazará la sesión.
 
 5. ⚠️ Notas para Despliegue (Roadmap)
-Actualmente, el proyecto está configurado para un entorno de desarrollo/académico. Para un despliegue en producción (Live), se deben aplicar las siguientes mejoras mandatorias:
+Actualmente, el proyecto está configurado para un entorno de desarrollo/académico. Para un despliegue en producción (Live), se deben aplicar las siguientes mejoras obligatorias:
 
-HTTPS (TLS/SSL): Obligatorio para cifrar el tráfico en tránsito y proteger la cookie de sesión.
+HTTPS (TLS/SSL): Obligatorio para cifrar el tráfico en tránsito y proteger la cookie de sesión contra intercepciones.
 
-Variables de Entorno: La SECRET_KEY no debe estar hardcodeada en el código (src/app.py), sino cargarse desde un archivo .env no versionado.
+Variables de Entorno: La SECRET_KEY no debe estar escrita directamente en el código (src/app.py), sino cargarse desde un archivo .env no versionado.
 
-Flag Secure en Cookies: Configurar SESSION_COOKIE_SECURE = True para que las cookies solo viajen por HTTPS.
+Flag Secure en Cookies: Configurar SESSION_COOKIE_SECURE = True en Flask para asegurar que las cookies solo viajen a través de conexiones HTTPS seguras.
 
-Protección CSRF: Implementar tokens anti-CSRF (via Flask-WTF) en todos los formularios POST.
+Protección CSRF: Implementar tokens anti-CSRF (vía Flask-WTF) en todos los formularios POST para prevenir peticiones falsificadas en nombre del usuario.
