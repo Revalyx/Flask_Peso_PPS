@@ -20,7 +20,6 @@ def setup_function():
 # HELPERS
 #################################
 
-# Registrar un usuario de prueba
 def register_test_user(client):
     return client.post("/register", data={
         "email": "test@test.com",
@@ -33,7 +32,7 @@ def login_test_user(client):
     register_test_user(client)
     return client.post("/login", data={
         "email": "test@test.com",
-        "password": "12345678"
+        "password": "PesoApp2025!" # 🔥 Aquí también
     }, follow_redirects=True)
 
 
