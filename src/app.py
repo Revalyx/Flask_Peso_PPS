@@ -7,7 +7,11 @@ from .models import Usuario, RegistroPeso
 
 
 
-
+COMMON_PASSWORDS = {
+    "12345612", "password", "12345678", "qwerty", "12345", 
+    "123456789", "football", "skywalker", "princess", "admin",
+    "welcome", "1234567", "monkey", "dragon", "master"
+}
 
 app = Flask(
     __name__,
@@ -146,6 +150,10 @@ def register_post():
     password = request.form.get("password", "")
     altura_raw = request.form.get("altura", "")
 
+    if password.lower() in COMMON_PASSWORDS:
+        flash("Esa contraseña es demasiado común y peligrosa. Elige otra.", "error")
+        return redirect("/register")
+
     if not email or not password or not altura_raw:
         flash("Todos los campos son obligatorios", "error")
         return redirect("/register")
@@ -157,7 +165,6 @@ def register_post():
     if len(password) < 8:
         flash("La contraseña debe tener al menos 8 caracteres", "error")
         return redirect("/register")
-
 
     if len(password) > 64:
         flash("La contraseña no puede superar 64 caracteres", "error")
