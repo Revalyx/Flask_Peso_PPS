@@ -55,15 +55,15 @@ Para proteger las cuentas contra robots que intentan adivinar contraseñas proba
     * **¿Por qué 5?** Es el equilibrio perfecto: ofrece margen suficiente para que un usuario legítimo se equivoque al escribir (dedos torpes), pero es una ventana demasiado pequeña para que un robot de fuerza bruta tenga éxito adivinando una contraseña compleja. Al cruzar este límite, el sistema asume que se trata de un ataque automatizado.
     
 
- ```python
 
-# Archivo: src/models.py
+```python
+# Lógica de Protección (src/models.py)
 
 # 1. Comprobar si ya está baneado antes de validar contraseña
 
 if usuario.bloqueado_hasta and usuario.bloqueado_hasta > datetime.now():
 
-    raise error("Tu cuenta está bloqueada temporalmente. Espera 15 min.")
+    return "BLOCKED"  # Rechazo inmediato
 
 # 2. Si la contraseña falla, aumentar contador
 
@@ -72,27 +72,27 @@ if not check_password_hash(usuario.password, password_input):
     usuario.intentos_fallidos += 1
     
     # Si llega al límite de 5 fallos -> BANEO
-    
+
     if usuario.intentos_fallidos >= 5:
-    
+
         usuario.bloqueado_hasta = datetime.now() + timedelta(minutes=15)
         
     db.session.commit()
-    
-    return False
+
+    return "WRONG_PASS"
 
 ```
 
-4.  **⏳ El Castigo (Time-out)**
+3.  **⏳ El Castigo (Time-out)**
    La cuenta queda **bloqueada durante 15 minutos**.
     * **Defensa de Recursos:** Esta fase no solo protege la contraseña, sino también el servidor. Al rechazar la petición chequeando simplemente una fecha (`bloqueado_hasta`), evitamos ejecutar el cálculo pesado de *Scrypt*. Esto significa que aunque un atacante nos bombardee con millones de peticiones, el servidor las descartará en microsegundos sin saturarse.
 
-5.  **✅ Rehabilitación**
+4.  **✅ Rehabilitación**
     El sistema es capaz de "curarse" solo sin intervención de un administrador.
     * **Reinicio por Éxito:** Si el usuario acierta su contraseña antes de llegar al límite (ej. al 4º intento), el sistema asume que fue un error humano y resetea los contadores a cero inmediatamente.
     * **Expiración del Castigo:** Pasados los 15 minutos, la restricción temporal caduca automáticamente, permitiendo al usuario legítimo volver a intentarlo sin tener que contactar con soporte.
 
-```markdown
+```sql
 
 # Archivo: src/models.py
 
@@ -105,5 +105,24 @@ ALTER TABLE users ADD COLUMN bloqueado_hasta DATETIME DEFAULT NULL;
 ```
 ---
 
+## 3. 🚫 Lista Negra de Contraseñas (Common Passwords)
 
+Como medida adicional de seguridad (Security Hardening), el sistema implementa una **Blacklist** que rechaza las contraseñas más comunes y vulnerables del mundo.
 
+### 🛡️ Implementación
+Antes de procesar cualquier contraseña, el sistema la coteja contra una lista de vectores de ataque conocidos (Top-15 contraseñas más usadas según reportes de seguridad).
+* **Objetivo:** Prevenir que usuarios perezosos comprometan la seguridad del sistema usando claves como `"123456"`, `"password"` o `"admin"`.
+* **Resultado:** Si la contraseña está en la lista negra, se rechaza inmediatamente sin llegar a tocar la base de datos.
+```sql
+
+COMMON_PASSWORDS = {
+    "12345612", "password", "12345678", "qwerty", "12345", 
+    "123456789", "football", "skywalker", "princess", "admin",
+    "welcome", "1234567", "monkey", "dragon", "master"
+}
+
+if password.lower() in COMMON_PASSWORDS:
+        flash("Esa contraseña es demasiado común y peligrosa. Elige otra.", "error")
+        return redirect("/register")
+
+```
