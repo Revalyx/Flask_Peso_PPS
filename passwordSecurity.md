@@ -105,5 +105,24 @@ ALTER TABLE users ADD COLUMN bloqueado_hasta DATETIME DEFAULT NULL;
 ```
 ---
 
+## 3. 🚫 Lista Negra de Contraseñas (Common Passwords)
 
+Como medida adicional de seguridad (Security Hardening), el sistema implementa una **Blacklist** que rechaza las contraseñas más comunes y vulnerables del mundo.
 
+### 🛡️ Implementación
+Antes de procesar cualquier contraseña, el sistema la coteja contra una lista de vectores de ataque conocidos (Top-15 contraseñas más usadas según reportes de seguridad).
+* **Objetivo:** Prevenir que usuarios perezosos comprometan la seguridad del sistema usando claves como `"123456"`, `"password"` o `"admin"`.
+* **Resultado:** Si la contraseña está en la lista negra, se rechaza inmediatamente sin llegar a tocar la base de datos.
+```sql
+
+COMMON_PASSWORDS = {
+    "12345612", "password", "12345678", "qwerty", "12345", 
+    "123456789", "football", "skywalker", "princess", "admin",
+    "welcome", "1234567", "monkey", "dragon", "master"
+}
+
+if password.lower() in COMMON_PASSWORDS:
+        flash("Esa contraseña es demasiado común y peligrosa. Elige otra.", "error")
+        return redirect("/register")
+
+```
