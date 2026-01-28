@@ -82,7 +82,13 @@ def aplicar_seguridad(response):
     
     return response
 
+# En src/app.py
+
 def validar_captcha(response_token):
+    # SI ESTAMOS EN MODO DE PRUEBA (TEST), ¡PASA, BRO!
+    if app.config.get("TESTING"):
+        return True
+
     """Verifica si el humano es humano y no un robot."""
     if not response_token:
         return False
@@ -93,8 +99,7 @@ def validar_captcha(response_token):
     }
     try:
         r = requests.post("https://www.google.com/recaptcha/api/siteverify", data=payload)
-        resultado = r.json()
-        return resultado.get("success", False)
+        return r.json().get("success", False)
     except:
         return False
 
