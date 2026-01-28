@@ -11,6 +11,9 @@ from src.models import Usuario, RegistroPeso
 #################################
 
 def setup_function():
+    # 🔥 ACTIVAMOS EL MODO TESTING (PASE VIP PARA EL CAPTCHA)
+    app.config['TESTING'] = True
+    
     if DB_PATH.exists():
         os.remove(DB_PATH)
     init_db()
@@ -24,7 +27,9 @@ def register_test_user(client):
     return client.post("/register", data={
         "email": "test@test.com",
         "password": "PesoApp2025!", 
-        "altura": "180"
+        "altura": "180",
+        # Aunque tengamos pase VIP, enviamos un token falso por si acaso
+        "g-recaptcha-response": "TOKEN_DE_PRUEBA" 
     }, follow_redirects=True)
 
 
@@ -32,7 +37,7 @@ def login_test_user(client):
     register_test_user(client)
     return client.post("/login", data={
         "email": "test@test.com",
-        "password": "PesoApp2025!" # 🔥 Aquí también
+        "password": "PesoApp2025!"
     }, follow_redirects=True)
 
 
@@ -78,9 +83,10 @@ def test_register_user():
 def test_register_peso_requires_login():
     client = app.test_client()
 
+    # Usamos fecha pasada para evitar conflictos
     res = client.post("/registro", data={
         "peso": "80",
-        "fecha": "2025-11-21"
+        "fecha": "2023-11-21"
     })
 
     assert res.status_code == 302
@@ -92,9 +98,13 @@ def test_register_peso_when_logged():
 
     login_test_user(client)
 
+    # 🔥 CAMBIO IMPORTANTE: Usamos una fecha pasada (2023) 
+    # para que tu validación de "no fechas futuras" no falle el test.
+    fecha_pasada = "2023-11-22"
+
     res = client.post("/registro", data={
         "peso": "85",
-        "fecha": "2025-11-22"
+        "fecha": fecha_pasada
     }, follow_redirects=True)
 
     assert res.status_code == 200
@@ -107,7 +117,7 @@ def test_register_peso_when_logged():
 
     assert row is not None
     assert float(row[0]) == 85
-    assert row[1] == "2025-11-22"
+    assert row[1] == fecha_pasada
 
 
 def test_historial_in_home():
@@ -115,10 +125,11 @@ def test_historial_in_home():
 
     login_test_user(client)
 
+    # Insertamos un registro con fecha pasada
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO registros (user_id, peso, fecha) VALUES (1, 90, '2025-11-23')"
+        "INSERT INTO registros (user_id, peso, fecha) VALUES (1, 90, '2023-11-23')"
     )
     conn.commit()
     conn.close()
@@ -159,7 +170,8 @@ def test_register_duplicate_email():
     res = client.post("/register", data={
         "email": "test@test.com",
         "password": "12345678",
-        "altura": "180"
+        "altura": "180",
+        "g-recaptcha-response": "TOKEN_TEST"
     }, follow_redirects=True)
 
     assert res.status_code == 200
@@ -171,4 +183,3 @@ def test_register_peso_missing_data():
 
     res = client.post("/registro", data={}, follow_redirects=True)
     assert res.status_code == 200
-
