@@ -11,7 +11,7 @@ from src.models import Usuario, RegistroPeso
 #################################
 
 def setup_function():
-    # 🔥 ACTIVAMOS EL MODO TESTING (PASE VIP PARA EL CAPTCHA)
+    # 🔥 MODO TESTING ACTIVADO (Para saltar el Captcha)
     app.config['TESTING'] = True
     
     if DB_PATH.exists():
@@ -28,8 +28,7 @@ def register_test_user(client):
         "email": "test@test.com",
         "password": "PesoApp2025!", 
         "altura": "180",
-        # Aunque tengamos pase VIP, enviamos un token falso por si acaso
-        "g-recaptcha-response": "TOKEN_DE_PRUEBA" 
+        "g-recaptcha-response": "TOKEN_TEST"
     }, follow_redirects=True)
 
 
@@ -37,7 +36,7 @@ def login_test_user(client):
     register_test_user(client)
     return client.post("/login", data={
         "email": "test@test.com",
-        "password": "PesoApp2025!"
+        "password": "PesoApp2025!" 
     }, follow_redirects=True)
 
 
@@ -83,7 +82,6 @@ def test_register_user():
 def test_register_peso_requires_login():
     client = app.test_client()
 
-    # Usamos fecha pasada para evitar conflictos
     res = client.post("/registro", data={
         "peso": "80",
         "fecha": "2023-11-21"
@@ -98,8 +96,7 @@ def test_register_peso_when_logged():
 
     login_test_user(client)
 
-    # 🔥 CAMBIO IMPORTANTE: Usamos una fecha pasada (2023) 
-    # para que tu validación de "no fechas futuras" no falle el test.
+    # 🔥 FECHA PASADA (2023) PARA QUE NO FALLE LA VALIDACIÓN
     fecha_pasada = "2023-11-22"
 
     res = client.post("/registro", data={
@@ -125,7 +122,7 @@ def test_historial_in_home():
 
     login_test_user(client)
 
-    # Insertamos un registro con fecha pasada
+    # Insertamos también con fecha pasada
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
@@ -170,8 +167,7 @@ def test_register_duplicate_email():
     res = client.post("/register", data={
         "email": "test@test.com",
         "password": "12345678",
-        "altura": "180",
-        "g-recaptcha-response": "TOKEN_TEST"
+        "altura": "180"
     }, follow_redirects=True)
 
     assert res.status_code == 200
