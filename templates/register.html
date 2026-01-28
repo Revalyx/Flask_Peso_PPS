@@ -131,13 +131,15 @@ button:hover {
     to   { opacity: 1; transform: translateY(0); }
 }
 </style>
+<head>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
 </head>
 
 <body>
 
 <div class="container">
     <div class="card">
-
         <h1>Crear cuenta</h1>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -170,6 +172,10 @@ button:hover {
             <div class="field">
                 <label>Altura (cm)</label>
                 <input type="number" name="altura" required>
+            </div>
+
+            <div class="field">
+                <div class="g-recaptcha" data-sitekey="6LfpMFksAAAAAHl0R2BcAUyQv2DLGzC9_k-SivMH"></div>
             </div>
 
             <button>Crear cuenta</button>

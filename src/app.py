@@ -4,6 +4,8 @@ import re
 
 from .db import init_db, get_connection
 from .models import Usuario, RegistroPeso
+import requests  # <--- Nuevo para el Captcha
+from flask import Flask, request, session, redirect, render_template, flash, make_response # <--- Agrega make_response
 
 
 
@@ -28,6 +30,76 @@ init_db()
 
 EMAIL_REGEX = r"^[^@]+@[^@]+\.[^@]+$"
 
+
+
+# CLAVES DE RECAPTCHA 
+RECAPTCHA_SITE_KEY = "6LfpMFksAAAAAHl0R2BcAUyQv2DLGzC9_k-SivMH"
+RECAPTCHA_SECRET_KEY = "6LfpMFksAAAAAN6tCj_olsGd7DqUIIQOconc2wYu"
+
+# Definimos la Política de Seguridad de Contenido (CSP)
+
+CSP_POLICY = {
+    'default-src': ["'self'"],
+    'script-src': [
+        "'self'", 
+        "'unsafe-inline'", 
+        "https://cdn.jsdelivr.net", 
+        "https://www.google.com", 
+        "https://www.gstatic.com"
+    ],
+    'style-src': [
+        "'self'", 
+        "'unsafe-inline'", 
+        "https://cdn.jsdelivr.net", 
+        "https://fonts.googleapis.com"
+    ],
+    'font-src': [
+        "'self'", 
+        "https://fonts.gstatic.com"
+    ],
+    'frame-src': [
+        "https://www.google.com"  # Necesario para el iframe del Captcha
+    ],
+    'img-src': ["'self'", "data:"]
+}
+
+# Convertimos el diccionario a string para la cabecera
+csp_string = "; ".join([f"{k} {' '.join(v)}" for k, v in CSP_POLICY.items()])
+
+@app.after_request
+def aplicar_seguridad(response):
+    # 1. HSTS (Strict-Transport-Security)
+    # Le dice al navegador: "Bro, conmigo solo hablas por HTTPS durante 1 año".
+    # Importante: En localhost sin HTTPS esto el navegador suele ignorarlo o dar warning,
+    # pero así se implementa para producción.
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    
+    # 2. CSP (Content-Security-Policy)
+    # Controla qué recursos se pueden cargar. Evita ataques XSS.
+    response.headers['Content-Security-Policy'] = csp_string
+    
+    # Extra: Cabeceras de seguridad recomendadas
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    
+    return response
+
+def validar_captcha(response_token):
+    """Verifica si el humano es humano y no un robot."""
+    if not response_token:
+        return False
+    
+    payload = {
+        'secret': RECAPTCHA_SECRET_KEY,
+        'response': response_token
+    }
+    try:
+        r = requests.post("https://www.google.com/recaptcha/api/siteverify", data=payload)
+        resultado = r.json()
+        return resultado.get("success", False)
+    except:
+        return False
+
 # ---------------- LOGIN ----------------
 @app.get("/login")
 def login():
@@ -35,6 +107,7 @@ def login():
 
 @app.post("/login")
 def login_post():
+        
     email = request.form.get("email", "").strip()
     password = request.form.get("password", "")
 
@@ -110,14 +183,18 @@ def home():
         color_estado=color_estado,
         altura=altura,
         labels=labels,
-        data=data
+        data=data,
+        hoy=date.today().strftime("%Y-%m-%d")  # <--- ¡NUEVA LÍNEA CLAVE!
     )
 # ---------------- REGISTRO PESO ----------------
+# En src/app.py
+
 @app.post("/registro")
 def registrar_peso():
     if "user_id" not in session:
         return redirect("/login")
 
+    # --- 1. RECUPERAR Y VALIDAR PESO (ESTO ES LO QUE FALTABA) ---
     try:
         peso = float(request.form.get("peso"))
         if peso < 50 or peso > 300:
@@ -126,15 +203,25 @@ def registrar_peso():
         flash("El peso debe estar entre 50 kg y 300 kg", "error")
         return redirect("/")
 
-
+    # --- 2. VALIDACIÓN DE FECHA ---
     try:
         fecha = datetime.strptime(request.form.get("fecha"), "%Y-%m-%d").date()
+        
+        # No futuro
         if fecha > date.today():
-            raise ValueError
-    except:
-        flash("No puedes registrar fechas futuras", "error")
+            flash("No puedes registrar fechas futuras, ¡no eres Marty McFly!", "error")
+            return redirect("/")
+            
+        # No muy antiguo
+        if fecha < date(2000, 1, 1):
+            flash("La fecha es demasiado antigua (mínimo año 2000)", "error")
+            return redirect("/")
+            
+    except ValueError:
+        flash("Formato de fecha inválido", "error")
         return redirect("/")
 
+    # --- 3. GUARDAR EN BD ---
     RegistroPeso.crear(session["user_id"], peso, fecha)
     flash("Peso guardado correctamente", "success")
     return redirect("/")
@@ -146,6 +233,11 @@ def register():
 
 @app.post("/register")
 def register_post():
+    captcha_response = request.form.get("g-recaptcha-response")
+    
+    if not validar_captcha(captcha_response):
+        flash("Captcha inválido o no completado. ¿Eres un robot, bro?", "error")
+        return redirect("/register")
     email = request.form.get("email", "").strip()
     password = request.form.get("password", "")
     altura_raw = request.form.get("altura", "")

@@ -2,3 +2,4 @@ flask
 pytest
 coverage
 python-dotenv
+requests
