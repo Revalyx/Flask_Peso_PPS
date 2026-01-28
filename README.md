@@ -40,6 +40,12 @@ Permite gestionar usuarios, almacenar registros históricos de peso y calcular i
 
 - **Werkzeug (Security)**
   Librería fundamental para la seguridad de la aplicación. Se encarga de hashear las contraseñas utilizando el algoritmo Scrypt y gestiona la generación automática del **salt** para cada usuario, asegurando un almacenamiento irreversible y robusto de las credenciales.
+  
+- **Google reCAPTCHA v2**
+  Servicio de protección contra bots implementado en el formulario de registro. Se valida en el servidor comunicándose con la API de Google mediante la librería `requests` para asegurar que el usuario es humano antes de procesar cualquier dato.
+
+- **HSTS & CSP (Cabeceras de Seguridad)**
+  Implementación de *HTTP Strict Transport Security* para forzar conexiones seguras y *Content Security Policy* para prevenir ataques XSS. Estas cabeceras se inyectan en cada respuesta del servidor mediante un middleware (`@app.after_request`), controlando rigurosamente los orígenes permitidos de scripts y estilos.
 
 
 ## ⚙️ Ejecución en local (recomendada)
