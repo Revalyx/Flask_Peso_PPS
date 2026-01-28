@@ -69,13 +69,11 @@ csp_string = "; ".join([f"{k} {' '.join(v)}" for k, v in CSP_POLICY.items()])
 @app.after_request
 def aplicar_seguridad(response):
     # 1. HSTS (Strict-Transport-Security)
-    # Le dice al navegador: "Bro, conmigo solo hablas por HTTPS durante 1 año".
-    # Importante: En localhost sin HTTPS esto el navegador suele ignorarlo o dar warning,
-    # pero así se implementa para producción.
+
     response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     
     # 2. CSP (Content-Security-Policy)
-    # Controla qué recursos se pueden cargar. Evita ataques XSS.
+
     response.headers['Content-Security-Policy'] = csp_string
     
     # Extra: Cabeceras de seguridad recomendadas
@@ -236,7 +234,7 @@ def register_post():
     captcha_response = request.form.get("g-recaptcha-response")
     
     if not validar_captcha(captcha_response):
-        flash("Captcha inválido o no completado. ¿Eres un robot, bro?", "error")
+        flash("Captcha inválido o no completado. ¿Eres un robot?", "error")
         return redirect("/register")
     email = request.form.get("email", "").strip()
     password = request.form.get("password", "")
