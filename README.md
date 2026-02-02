@@ -48,38 +48,44 @@ Permite gestionar usuarios, almacenar registros históricos de peso y calcular i
   Implementación de *HTTP Strict Transport Security* para forzar conexiones seguras y *Content Security Policy* para prevenir ataques XSS. Estas cabeceras se inyectan en cada respuesta del servidor mediante un middleware (`@app.after_request`), controlando rigurosamente los orígenes permitidos de scripts y estilos.
 
 
-## ⚙️ Ejecución en local (recomendada)
+## ⚙️ Ejecución con Docker y WAF (Recomendada)
 
-Esta aplicación está pensada exclusivamente para ejecutarse en **entorno local**.
+Esta aplicación está diseñada para ejecutarse en contenedores **Docker**, protegida por un **WAF (ModSecurity + Nginx)** que filtra ataques.
 
-### Opción rápida (Windows / Linux / macOS)
+### Requisitos previos
 
-#### 1. Descarga el proyecto como ZIP desde GitHub y descomprímelo
+- Tener Docker instalado y corriendo.
 
-#### 2. Abre una terminal en la carpeta del proyecto
+- Linux: Asegúrate de tener permisos (o usa sudo antes de los comandos).
 
-#### 3. Ejecuta el siguiente comando
+### Instrucciones de Despliegue
+  
+#### 1. Abre una terminal en la carpeta del proyecto
+
+#### 2. Construye la imagen de la aplicación:
 
 ```
-python start.py
+docker build -t mi-app-flask .
+```
+#### 3. Despliega la infraestructura: Copia y ejecuta estos comandos en orden para levantar la red, la app y el WAF.
+
+```
+docker network create red-hacker
+```
+```
+docker run -d -p 5000:5000 --name la-app --network red-hacker -e FLASK_RUN_HOST=0.0.0.0 mi-app-flask
+```
+```
+docker run -d -p 80:80 --name el-waf --network red-hacker -e BACKEND=http://la-app:5000 -e SERVER_NAME=localhost owasp/modsecurity-crs:3-nginx
 ```
 
-> #### El script se encarga automáticamente de:
->
-> * Crear el entorno virtual
->
-> * Instalar las dependencias
->
-> * Arrancar la aplicación
+### Acceso y Pruebas
 
-La aplicación estará disponible en:
+- Entrar a la web: Abre http://localhost en tu navegador.
 
-```txt
-http://127.0.0.1:5000
-```
+### Limpiar y Parar
 
-Para detener el servidor, pulsa **CTRL + C.**
-
+```docker rm -f la-app el-waf ```
 
 ## ℹ️ Notas
 
@@ -89,4 +95,5 @@ La aplicación utiliza una SECRET_KEY fija para uso académico (En producción n
 
 
 **Proyecto orientado a prácticas y aprendizaje**
+
 
