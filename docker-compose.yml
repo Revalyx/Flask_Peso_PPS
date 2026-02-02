@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  flask_app:
+    build: .
+    container_name: flask_peso_container
+    volumes:
+      - ./peso.db:/app/peso.db
+    environment:
+      - FLASK_ENV=development
+    networks:
+      - peso_net
+
+  
+  waf:
+    image: owasp/modsecurity-crs:apache
+    container_name: waf_protector
+    depends_on:
+      - flask_app
+    ports:
+      - "80:80"  
+    environment:
+      
+      - BACKEND=http://flask_app:5000
+      
+      
+      - MODSEC_RULE_ENGINE=On
+      
+      
+      - PARANOIA=1
+    networks:
+      - peso_net
+
+networks:
+  peso_net:
