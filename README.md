@@ -47,7 +47,9 @@ Permite gestionar usuarios, almacenar registros históricos de peso y calcular i
 - **HSTS & CSP (Cabeceras de Seguridad)**
   Implementación de *HTTP Strict Transport Security* para forzar conexiones seguras y *Content Security Policy* para prevenir ataques XSS. Estas cabeceras se inyectan en cada respuesta del servidor mediante un middleware (`@app.after_request`), controlando rigurosamente los orígenes permitidos de scripts y estilos.
 
-
+- **ModSecurity + OWASP CRS (WAF)**
+   Cortafuegos de aplicaciones web (WAF) desplegado en un contenedor Docker con Nginx. Actúa como proxy inverso interceptando todo el tráfico entrante y bloqueando peticiones maliciosas (como inyecciones SQL, XSS y escaneos de vulnerabilidades) mediante el conjunto de reglas estándar de OWASP (Core Rule Set), blindando la aplicación antes de que las peticiones toquen el servidor Flask.
+- 
 ## ⚙️ Ejecución con Docker y WAF (Recomendada)
 
 Esta aplicación está diseñada para ejecutarse en contenedores **Docker**, protegida por un **WAF (ModSecurity + Nginx)** que filtra ataques.
@@ -95,5 +97,6 @@ La aplicación utiliza una SECRET_KEY fija para uso académico (En producción n
 
 
 **Proyecto orientado a prácticas y aprendizaje**
+
 
 
