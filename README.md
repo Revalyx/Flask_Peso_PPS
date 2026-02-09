@@ -62,7 +62,7 @@ Esta aplicación está diseñada para ejecutarse en contenedores **Docker**, pro
 
 ### Instrucciones de Despliegue
 
-** ANTES DE EMPEZAR CON EL PROCESO, ES NECESARIO TENER INSTALADO Y ABIERTO DOCKER DESKTOP **
+- **ANTES DE EMPEZAR CON EL PROCESO, ES NECESARIO TENER INSTALADO Y ABIERTO DOCKER DESKTOP**
   
 #### 1. Abre una terminal en la carpeta del proyecto
 
@@ -99,6 +99,7 @@ La aplicación utiliza una SECRET_KEY fija para uso académico (En producción n
 
 
 **Proyecto orientado a prácticas y aprendizaje**
+
 
 
 
