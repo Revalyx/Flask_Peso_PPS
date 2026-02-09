@@ -61,6 +61,8 @@ Esta aplicación está diseñada para ejecutarse en contenedores **Docker**, pro
 - Linux: Asegúrate de tener permisos (o usa sudo antes de los comandos).
 
 ### Instrucciones de Despliegue
+
+** ANTES DE EMPEZAR CON EL PROCESO, ES NECESARIO TENER INSTALADO Y ABIERTO DOCKER DESKTOP **
   
 #### 1. Abre una terminal en la carpeta del proyecto
 
