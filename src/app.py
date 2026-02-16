@@ -1,6 +1,10 @@
 from flask import Flask, request, session, redirect, render_template, flash
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, set_access_cookies, unset_jwt_cookies
+from datetime import timedelta
 from datetime import datetime, date
+from flask_jwt_extended import get_jwt
 import re
+
 
 from .db import init_db, get_connection
 from .models import Usuario, RegistroPeso
@@ -25,6 +29,24 @@ app = Flask(
 app.secret_key = "super_secret_key"
 
 
+app.config["JWT_SECRET_KEY"] = "super_secret_jwt_key"
+app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
+app.config["JWT_COOKIE_SECURE"] = False  # Poner en True si algún día subes a producción con HTTPS
+app.config["JWT_COOKIE_CSRF_PROTECT"] = False
+app.config["JWT_SECRET_KEY"] = "super_secret_jwt_key" 
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1) 
+
+jwt = JWTManager(app)
+
+@jwt.unauthorized_loader
+def missing_token_callback(error_string):
+    flash("Acceso denegado. Por favor, inicia sesión.", "error")
+    return redirect("/login")
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    flash("Tu sesión ha caducado. Inicia sesión de nuevo.", "error")
+    return redirect("/login")
 
 init_db()
 
@@ -109,44 +131,55 @@ def login():
 
 @app.post("/login")
 def login_post():
-        
     email = request.form.get("email", "").strip()
     password = request.form.get("password", "")
-
-    # ... (validaciones de campos vacíos igual) ...
 
     resultado = Usuario.login(email, password)
 
     if resultado == "NO_USER":
         flash("Credenciales incorrectas", "error")
     elif resultado == "BLOCKED":
-        flash("Cuenta bloqueada temporalmente. Espera unos minutos.", "error")
+        flash("Cuenta bloqueada temporalmente.", "error")
     elif resultado == "BLOCKED_NOW":
-        flash("Has fallado 3 veces. Tu cuenta ha sido bloqueada por 5 minutos.", "error")
+        flash("Has fallado muchas veces. Bloqueo de 15 min.", "error")
     elif resultado == "WRONG_PASS":
         flash("Contraseña incorrecta", "error")
     else:
-        # Es un ID numérico, pa' dentro
-        session["user_id"] = resultado
-        return redirect("/")
+        # --- LOGIN EXITOSO ---
+        user_id, rol_real = resultado 
+        
+        # Claims
+        additional_claims = {"rol": rol_real}
+        access_token = create_access_token(identity=str(user_id), additional_claims=additional_claims)
+        
+        resp = redirect("/")
+        set_access_cookies(resp, access_token)
+        
+        # AQUÍ HEMOS QUITADO LOS MENSAJES DE ROL
+        # Solo un mensaje genérico (o ninguno si prefieres)
+        # flash("Sesión iniciada correctamente.", "success") 
+
+        return resp
     
     return redirect("/login")
 
 # ---------------- HOME ----------------
+# En src/app.py
+
 @app.get("/")
+@jwt_required()
 def home():
-    if "user_id" not in session:
-        return redirect("/login")
+    current_user_id = get_jwt_identity()
+    
+    # --- NUEVO: ¿ES EL JEFE? ---
+    claims = get_jwt()
+    es_admin = claims.get("rol") == "admin"
+    # ---------------------------
 
-    user_id = session["user_id"]
-
-    registros = RegistroPeso.obtener_por_usuario(user_id)
-
-    # Ordenar por fecha (como string YYYY-MM-DD funciona bien)
+    registros = RegistroPeso.obtener_por_usuario(current_user_id)
     registros = sorted(registros, key=lambda r: r[2])
 
-    altura = Usuario.get_altura(user_id)
-
+    altura = Usuario.get_altura(current_user_id)
     ultimo_peso = registros[-1][1] if registros else 0
 
     imc = None
@@ -155,25 +188,12 @@ def home():
 
     if altura and ultimo_peso:
         imc = round(ultimo_peso / ((altura / 100) ** 2), 2)
+        if imc < 18.5: estado, color_estado = "Bajo peso", "#fbbf24"
+        elif imc < 25: estado, color_estado = "Normopeso", "#4ade80"
+        elif imc < 30: estado, color_estado = "Sobrepeso", "#fb923c"
+        else: estado, color_estado = "Obesidad", "#ef4444"
 
-        if imc < 18.5:
-            estado = "Bajo peso"
-            color_estado = "#fbbf24"
-        elif imc < 25:
-            estado = "Normopeso"
-            color_estado = "#4ade80"
-        elif imc < 30:
-            estado = "Sobrepeso"
-            color_estado = "#fb923c"
-        else:
-            estado = "Obesidad"
-            color_estado = "#ef4444"
-
-    # 🔹 AQUÍ está el arreglo clave
-    labels = [
-        datetime.strptime(r[2], "%Y-%m-%d").strftime("%d/%m/%Y")
-        for r in registros
-    ]
+    labels = [datetime.strptime(r[2], "%Y-%m-%d").strftime("%d/%m/%Y") for r in registros]
     data = [r[1] for r in registros]
 
     return render_template(
@@ -186,17 +206,24 @@ def home():
         altura=altura,
         labels=labels,
         data=data,
-        hoy=date.today().strftime("%Y-%m-%d")  # <--- ¡NUEVA LÍNEA CLAVE!
+        hoy=date.today().strftime("%Y-%m-%d"),
+        es_admin=es_admin  # <--- ¡PASAMOS EL DATO AQUÍ!
     )
 # ---------------- REGISTRO PESO ----------------
 # En src/app.py
 
 @app.post("/registro")
+@jwt_required()
 def registrar_peso():
-    if "user_id" not in session:
-        return redirect("/login")
 
-    # --- 1. RECUPERAR Y VALIDAR PESO (ESTO ES LO QUE FALTABA) ---
+    claims = get_jwt()
+    if claims.get("rol") == "admin":
+        flash("El Administrador no puede registrar pesos, ¡solo vigilar!", "error")
+        return redirect("/")
+        
+    current_user_id = get_jwt_identity() # <--- Sacamos el ID del token
+
+    # --- 1. RECUPERAR Y VALIDAR PESO ---
     try:
         peso = float(request.form.get("peso"))
         if peso < 50 or peso > 300:
@@ -208,23 +235,18 @@ def registrar_peso():
     # --- 2. VALIDACIÓN DE FECHA ---
     try:
         fecha = datetime.strptime(request.form.get("fecha"), "%Y-%m-%d").date()
-        
-        # No futuro
         if fecha > date.today():
             flash("No puedes registrar fechas futuras, ¡no eres Marty McFly!", "error")
             return redirect("/")
-            
-        # No muy antiguo
         if fecha < date(2000, 1, 1):
             flash("La fecha es demasiado antigua (mínimo año 2000)", "error")
             return redirect("/")
-            
     except ValueError:
         flash("Formato de fecha inválido", "error")
         return redirect("/")
 
     # --- 3. GUARDAR EN BD ---
-    RegistroPeso.crear(session["user_id"], peso, fecha)
+    RegistroPeso.crear(current_user_id, peso, fecha)
     flash("Peso guardado correctamente", "success")
     return redirect("/")
 
@@ -295,5 +317,34 @@ def register_post():
 # ---------------- LOGOUT ----------------
 @app.get("/logout")
 def logout():
-    session.clear()
-    return redirect("/login")
+    resp = redirect("/login")
+    unset_jwt_cookies(resp) # <--- Borra el token del navegador
+    return resp
+
+@app.get("/zona-admin")
+@jwt_required()
+def zona_admin():
+    # Recuperamos los datos de dentro del token (el payload)
+    claims = get_jwt()
+    
+    if claims.get("rol") == "admin":
+        return "<h1>ZONA DE PELIGRO ☢️</h1><p>Hola Admin, aquí están los códigos nucleares.</p><a href='/'>Volver</a>"
+    else:
+        flash("¡Alto ahí! No eres admin. Intento de escalada de privilegios detectado.", "error")
+        return redirect("/")
+
+@app.get("/admin/registros")
+@jwt_required()
+def admin_registros():
+    claims = get_jwt()
+    
+    # 1. El Segurata: ¿Eres Admin?
+    if claims.get("rol") != "admin":
+        flash("¡Acceso denegado! Zona restringida.", "error")
+        return redirect("/")
+        
+    # 2. Pedimos todos los datos
+    registros = RegistroPeso.obtener_todos()
+    
+    # 3. Renderizamos la vista
+    return render_template("admin_registros.html", registros=registros)

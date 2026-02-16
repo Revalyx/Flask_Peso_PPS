@@ -163,6 +163,28 @@ button{
     border-radius:26px;
     box-shadow:0 20px 50px rgba(0,0,0,.45);
 }
+.btn-admin {
+        display: inline-block;
+        margin-right: 15px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #ef4444, #b91c1c); /* Rojo Peligro */
+        color: white !important;
+        border-radius: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        transition: transform 0.2s;
+    }
+    
+    .btn-admin:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-logout {
+        color: #818cf8;
+        text-decoration: none;
+        font-weight: 600;
+    }
 
 canvas{
     margin-top:10px;
@@ -178,19 +200,69 @@ canvas{
     color:#818cf8;
     text-decoration:none;
 }
+
+* Estilo para el botón de Admin */
+    .btn-admin {
+        display: inline-block;
+        margin-right: 15px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #ef4444, #b91c1c); /* Rojo Peligro */
+        color: white !important;
+        border-radius: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        transition: transform 0.2s;
+    }
+    
+    .btn-admin:hover {
+        transform: translateY(-2px);
+    }
+
+    .btn-logout {
+        color: #818cf8;
+        text-decoration: none;
+        font-weight: 600;
+    }
 </style>
 </head>
 <body>
 
 <div class="panel">
 
-    <!-- HEADER -->
+    {% if es_admin %}
+    <div class="header">
+        <h1>Panel de Control 🛡️</h1>
+    </div>
+
+    <div class="stats" style="grid-template-columns: 1fr;">
+        <div class="stat">
+            <div class="stat-value">Modo Administrador</div>
+            <div class="stat-label">Gestión global del sistema activada</div>
+        </div>
+    </div>
+    
+    <div class="form-card" style="text-align: center; padding: 40px;">
+        <p style="margin-bottom: 25px; color: var(--muted); font-size: 1.1rem;">
+            Bienvenido, Jefe. Desde aquí puedes supervisar la actividad de todos los usuarios registrados.
+        </p>
+        <a href="/admin/registros" class="btn-admin">
+            📊 Acceder a Registros Globales
+        </a>
+    </div>
+
+    {% else %}
     <div class="header">
         <h1>Panel</h1>
         <div class="status">{{ estado }}</div>
     </div>
 
-    <!-- STATS -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category,msg in messages %}
+        <div class="flash {{ category }}">{{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+
     <div class="stats">
         <div class="stat">
             <div class="stat-value">{{ peso_actual }} kg</div>
@@ -206,14 +278,7 @@ canvas{
         </div>
     </div>
 
-    <!-- FORM -->
     <div class="form-card">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category,msg in messages %}
-            <div class="flash {{ category }}">{{ msg }}</div>
-        {% endfor %}
-        {% endwith %}
-
         <form method="POST" action="/registro">
             <label>Peso (kg)</label>
             <input type="number" step="0.01" name="peso" required>
@@ -225,10 +290,8 @@ canvas{
         </form>
     </div>
 
-    <!-- HISTORIAL -->
     <div class="historial">
-        <h3>Historial</h3>
-
+        <h3>Historial Personal</h3>
         {% if registros %}
             {% for r in registros %}
             <div class="item">
@@ -241,15 +304,16 @@ canvas{
         {% endif %}
     </div>
 
-    <!-- CHART -->
     {% if registros %}
     <div class="chart-card">
         <canvas id="chart"></canvas>
     </div>
     {% endif %}
 
+    {% endif %}
+
     <div class="links">
-        <a href="/logout">Cerrar sesión</a>
+        <a href="/logout" class="btn-logout">Cerrar sesión</a>
     </div>
 
 </div>
