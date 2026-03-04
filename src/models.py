@@ -6,19 +6,25 @@ from werkzeug.security import generate_password_hash, check_password_hash
 class Usuario:
 
     @staticmethod
-    def registrar(email, password, altura):
+
+    def registrar(email, password, altura, rol="usuario"):
         conn = get_connection()
         cur = conn.cursor()
 
-        cur.execute("""
-            INSERT INTO users (email, password, altura)
-            VALUES (?, ?, ?)
-        """, (email, generate_password_hash(password), altura))
+        try:
+            cur.execute("""
+                INSERT INTO users (email, password, altura, rol)
+                VALUES (?, ?, ?, ?)
+            """, (email, generate_password_hash(password), altura, rol))
 
-        conn.commit()
-        user_id = cur.lastrowid
-        conn.close()
-        return user_id
+            conn.commit()
+            user_id = cur.lastrowid
+            return user_id
+        except Exception as e:
+            print(f"Error en DB al registrar: {e}")
+            raise e
+        finally:
+            conn.close()
 
     @staticmethod
     def login(email, password):
