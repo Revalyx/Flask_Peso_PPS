@@ -23,15 +23,18 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install coverage pytest coveralls
+          # Añadimos PyYAML para que coveralls lea bien la config
+          pip install coverage pytest coveralls PyYAML 
 
       - name: Run tests with coverage
         run: |
+          # Generamos el .coverage
           coverage run -m pytest
           coverage report
+          # Generamos el XML por si Coveralls lo prefiere
           coverage xml
 
       - name: Upload to Coveralls
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: coveralls --service=github
+        run: coveralls
