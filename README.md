@@ -49,6 +49,33 @@ Permite gestionar usuarios, almacenar registros históricos de peso y calcular i
 
 - **ModSecurity + OWASP CRS (WAF)**
    Cortafuegos de aplicaciones web (WAF) desplegado en un contenedor Docker con Nginx. Actúa como proxy inverso interceptando todo el tráfico entrante y bloqueando peticiones maliciosas (como inyecciones SQL, XSS y escaneos de vulnerabilidades) mediante el conjunto de reglas estándar de OWASP (Core Rule Set), blindando la aplicación antes de que las peticiones toquen el servidor Flask.
+
+## 📱 Cliente Mobile (Android)
+
+El proyecto incluye una aplicación móvil nativa desarrollada con **Jetpack Compose** que consume la API de Flask. Se ha priorizado la experiencia de usuario y la integridad de los datos.
+
+### 🎨 Interfaz y UX
+- **Material 3 Design:** Implementación de una interfaz moderna con jerarquía visual clara, headers con gradientes y tarjetas de registro estilizadas.
+- **Feedback Proactivo:** Sistema de `AlertDialogs` que interceptan errores de entrada (como valores no numéricos) antes de realizar peticiones de red.
+- **Lazy Loading:** Historial optimizado que muestra los registros en orden cronológico inverso para facilitar el seguimiento del progreso actual.
+
+### 🛡️ Validaciones de Integridad (Frontend & Backend)
+Se ha implementado un sistema de doble validación para asegurar la calidad de los datos biométricos:
+
+1. **Validación en Cliente:** Normalización de inputs (comas por puntos) y filtrado de tipos de datos en Kotlin para evitar peticiones malformadas.
+2. **Validación en Servidor:** El endpoint `/api/registro_peso` realiza un saneamiento estricto:
+    - **Rango lógico:** Solo se permiten pesos entre **30kg y 500kg**.
+    - **Consistencia temporal:** Validación mediante la librería `datetime` para impedir el registro de fechas futuras ("Efecto Marty McFly").
+    - **Tipado robusto:** Manejo de excepciones `ValueError` para descartar cualquier entrada que no sea un float válido.
+
+---
+
+## 🛠️ Herramientas de Administración de Datos
+
+Para el mantenimiento de la base de datos SQLite sin necesidad de herramientas externas pesadas, se han incluido scripts de utilidad en Python:
+
+- **Mantenimiento de DB:** Scripts para la limpieza de registros inconsistentes o corrección de errores de entrada manual.
+- **Modo Debug:** Logs detallados en el backend para monitorear transacciones de peso y errores de inserción en tiempo real.   
   
 ## ⚙️ Ejecución con Docker y WAF (Recomendada)
 
