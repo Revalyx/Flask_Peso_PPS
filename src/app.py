@@ -3,6 +3,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import timedelta
 from datetime import datetime, date
 from flask_jwt_extended import get_jwt
+from .app_endpoints import api_bp
 import re
 
 
@@ -28,9 +29,12 @@ app = Flask(
 
 app.secret_key = "super_secret_key"
 
+# Registramos las rutas de la API con el prefijo /api
+app.register_blueprint(api_bp, url_prefix='/api')
+
 
 app.config["JWT_SECRET_KEY"] = "super_secret_jwt_key"
-app.config["JWT_TOKEN_LOCATION"] = ["cookies"]
+app.config["JWT_TOKEN_LOCATION"] = ["cookies","headers"]
 app.config["JWT_COOKIE_SECURE"] = False  # Poner en True si algún día subes a producción con HTTPS
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False
 app.config["JWT_SECRET_KEY"] = "super_secret_jwt_key" 
