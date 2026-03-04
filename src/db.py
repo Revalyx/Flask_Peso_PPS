@@ -9,15 +9,16 @@ def get_connection():
 def init_db():
     conn = get_connection()
     cur = conn.cursor()
-
+    # Asegúrate de que el CREATE TABLE incluya 'rol'
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            altura REAL,
-            intentos_fallidos INTEGER DEFAULT 0,  -- Cuenta los fallos totales
-            bloqueado_hasta TEXT                  -- Marca de tiempo del desbloqueo
+            altura INTEGER,
+            intentos_fallidos INTEGER DEFAULT 0,
+            bloqueado_hasta TEXT,
+            rol TEXT DEFAULT 'usuario'  -- <--- ESTA LÍNEA ES IMPRESCINDIBLE
         )
     """)
 
