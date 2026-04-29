@@ -15,6 +15,8 @@ COMMON_PASSWORDS = {
     "welcome", "1234567", "monkey", "dragon", "master"
 }
 
+# Configuración de la aplicación Flask
+
 app = Flask(
     __name__,
     template_folder="../templates",
