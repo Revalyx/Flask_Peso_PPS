@@ -4,3 +4,4 @@ coverage
 python-dotenv
 requests
 flask-jwt-extended
+flasgger
