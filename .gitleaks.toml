@@ -1,0 +1,9 @@
+title = "gitleaks config"
+
+[allowlist]
+description = "Archivos ignorados en el proyecto Flask"
+paths = [
+  '''peso\.db''',
+  '''tests/.*''',
+  '''gitleaks\.toml'''
+]
