@@ -16,7 +16,7 @@ COMMON_PASSWORDS = {
 }
 
 # Configuración de la aplicación Flask
-
+AWS_KEY="AKIAIOSFODNN7EXAMPLE"
 app = Flask(
     __name__,
     template_folder="../templates",
