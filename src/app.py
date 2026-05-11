@@ -15,8 +15,8 @@ COMMON_PASSWORDS = {
     "welcome", "1234567", "monkey", "dragon", "master"
 }
 
-AWS_ACCESS_KEY_ID = "AKIA123456789ABCDEFG" 
-AWS_SECRET_ACCESS_KEY = "v7n9x2P/4mZ8LqR5tW3bY1cE0uI6kO8sN2jG4fH1"
+# Token oficial para forzar el bloqueo de Push Protection
+GITHUB_TEST_TOKEN = "secret_scanning_ab85fc6f8d7638cf1c11da812da308d43_abcde"
 
 
 # Configuración de la aplicación Flask
