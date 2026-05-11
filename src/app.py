@@ -15,7 +15,8 @@ COMMON_PASSWORDS = {
     "welcome", "1234567", "monkey", "dragon", "master"
 }
 
-AWS_SECRET = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+AWS_ACCESS_KEY_ID = "AKIA123456789ABCDEFG" 
+AWS_SECRET_ACCESS_KEY = "v7n9x2P/4mZ8LqR5tW3bY1cE0uI6kO8sN2jG4fH1"
 
 
 # Configuración de la aplicación Flask
