@@ -15,6 +15,8 @@ COMMON_PASSWORDS = {
     "welcome", "1234567", "monkey", "dragon", "master"
 }
 
+AWS_KEY="AKIA1234567890ABCDEF" #eliminada
+
 
 # Configuración de la aplicación Flask
 
